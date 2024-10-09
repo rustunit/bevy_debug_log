@@ -9,7 +9,20 @@ Allows viewing the tracing debug log output inside the app - particularly on pla
 ## Usage
 
 ```rust
-TODO
+App::new().add_plugins((
+    DefaultPlugins.set(LogPlugin {
+        filter: "info".into(),
+        level: bevy::log::Level::INFO,
+        // provide custom log layer to receive logging events
+        custom_layer: bevy_debug_log::log_capture_layer,
+    }),
+    // register our plugin
+    bevy_debug_log::plugin,
+));
+
+
+// in any bevy system use this trigger to toggle the debug log ui on and off
+commands.trigger(LogViewerVisibility::Toggle);
 ```
 
 > [!TIP]
@@ -29,12 +42,13 @@ TODO
 - [bevy_ios_notifications](https://github.com/rustunit/bevy_ios_notifications)
 - [bevy_ios_gamecenter](https://github.com/rustunit/bevy_ios_gamecenter)
 - [bevy_web_popups](https://github.com/rustunit/bevy_web_popups)
+- [bevy_libgdx_asset](https://github.com/rustunit/bevy_libgdx_asset)
 
 ## Compatible Bevy Versions
 
 |bevy|bevy_debug_log|
 |-|-|
-|0.14|master|
+|0.14|0.1|
 
 ## License
 

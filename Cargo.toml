@@ -2,6 +2,13 @@
 name = "bevy_debug_log"
 version = "0.1.0"
 edition = "2021"
+authors = ["Rustunit <mail@rustunit.com>"]
+description = "Allows viewing tracing debug log output inside the bevy app using vanilla bevy_ui."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rustunit/bevy_debug_log"
+readme = "README.md"
+keywords = ["bevy", "gamedev", "testing", "logging"]
+categories = ["game-development"]
 
 [dependencies]
 bevy = { version = "0.14", default-features = false, features = [
