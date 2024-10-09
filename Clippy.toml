@@ -1,0 +1,6 @@
+disallowed-methods = [
+    { path = "bevy::ecs::system::Query::single", reason = "might panic, prefer get_single" },
+    { path = "bevy::ecs::system::Query::single_mut", reason = "might panic, prefer get_single_mut" },
+    { path = "bevy::ecs::query::QueryState::single", reason = "might panic, prefer get_single" },
+    { path = "bevy::ecs::query::QueryState::single_mut", reason = "might panic, prefer get_single_mut" },
+]
