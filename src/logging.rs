@@ -75,9 +75,13 @@ pub fn plugin(app: &mut App) {
     app.add_systems(Update, transfer_log_events);
 
     app.observe(handle_log_viewer_visibilty);
+    app.observe(handle_log_viewer_fullscreen);
 
     app.add_systems(Startup, setup_log_viewer_ui);
-    app.add_systems(Update, (update_log_ui, on_close_button));
+    app.add_systems(
+        Update,
+        (update_log_ui, on_close_button, on_fullscreen_button),
+    );
 }
 
 pub fn log_capture_layer(app: &mut App) -> Option<BoxedLayer> {
@@ -94,12 +98,20 @@ pub fn log_capture_layer(app: &mut App) -> Option<BoxedLayer> {
 #[derive(Resource, Default)]
 struct LogViewer {
     visible: bool,
+    fullscreen: bool,
 }
 
 #[derive(Event, Reflect, Debug, Clone, Copy)]
 pub enum LogViewerVisibility {
     Show,
     Hide,
+    Toggle,
+}
+
+#[derive(Event, Reflect, Debug, Clone, Copy)]
+pub enum LogViewerSize {
+    Big,
+    Small,
     Toggle,
 }
 
@@ -111,6 +123,9 @@ struct ListMarker;
 
 #[derive(Component)]
 struct CloseButton;
+
+#[derive(Component)]
+struct SizeButton;
 
 fn setup_log_viewer_ui(mut commands: Commands) {
     commands.insert_resource(LogViewer::default());
@@ -155,25 +170,31 @@ fn setup_log_viewer_ui(mut commands: Commands) {
         .with_children(|parent| {
             // Title Bar
             parent
-                .spawn(NodeBundle {
-                    style: Style {
-                        flex_direction: FlexDirection::Row,
-                        justify_content: JustifyContent::SpaceBetween,
+                .spawn((
+                    NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Row,
+                            justify_content: JustifyContent::SpaceBetween,
+                            ..default()
+                        },
                         ..default()
                     },
-                    ..default()
-                })
+                    Name::new("title_bar"),
+                ))
                 .with_children(|parent| {
                     parent
-                        .spawn(NodeBundle {
-                            style: Style {
-                                align_content: AlignContent::Stretch,
-                                justify_self: JustifySelf::Center,
-                                padding: UiRect::all(Val::Px(5.)),
+                        .spawn((
+                            NodeBundle {
+                                style: Style {
+                                    align_content: AlignContent::Stretch,
+                                    justify_self: JustifySelf::Center,
+                                    padding: UiRect::all(Val::Px(5.)),
+                                    ..default()
+                                },
                                 ..default()
                             },
-                            ..default()
-                        })
+                            Name::new("title_text"),
+                        ))
                         .with_children(|parent| {
                             parent.spawn((
                                 TextBundle::from_section(
@@ -186,15 +207,56 @@ fn setup_log_viewer_ui(mut commands: Commands) {
                                 Label,
                             ));
                         });
-                    parent
-                        .spawn(NodeBundle {
+                    parent.spawn((
+                        NodeBundle {
                             style: Style {
-                                padding: UiRect::all(Val::Px(5.)),
                                 align_items: AlignItems::End,
+                                flex_grow: 1.0,
                                 ..default()
                             },
                             ..default()
-                        })
+                        },
+                        Name::new("title_bar_spacer"),
+                    ));
+                    parent
+                        .spawn((
+                            NodeBundle {
+                                style: Style {
+                                    padding: UiRect::all(Val::Px(5.)),
+                                    align_items: AlignItems::End,
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            Name::new("size_btn"),
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn((
+                                ButtonBundle {
+                                    background_color: Color::srgb_u8(43, 198, 63).into(),
+                                    border_radius: BorderRadius::all(Val::Px(20.)),
+                                    style: Style {
+                                        width: Val::Px(20.),
+                                        height: Val::Px(20.),
+                                        ..default()
+                                    },
+                                    ..default()
+                                },
+                                SizeButton,
+                            ));
+                        });
+                    parent
+                        .spawn((
+                            NodeBundle {
+                                style: Style {
+                                    padding: UiRect::all(Val::Px(5.)),
+                                    align_items: AlignItems::End,
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            Name::new("close_logs_btn"),
+                        ))
                         .with_children(|parent| {
                             parent.spawn((
                                 ButtonBundle {
@@ -207,7 +269,6 @@ fn setup_log_viewer_ui(mut commands: Commands) {
                                     },
                                     ..default()
                                 },
-                                Name::new("close_logs_btn"),
                                 CloseButton,
                             ));
                         });
@@ -267,6 +328,41 @@ fn handle_log_viewer_visibilty(
             style.display = Display::None;
         }
         log_viewer_res.visible = false;
+    }
+}
+
+fn handle_log_viewer_fullscreen(
+    trigger: Trigger<LogViewerSize>,
+    mut log_viewer_query: Query<&mut Style, With<LogViewerMarker>>,
+    mut log_viewer_res: ResMut<LogViewer>,
+) {
+    match trigger.event() {
+        LogViewerSize::Big => {
+            for mut style in log_viewer_query.iter_mut() {
+                style.height = Val::Percent(100.0);
+            }
+            log_viewer_res.fullscreen = true;
+        }
+        LogViewerSize::Small => {
+            for mut style in log_viewer_query.iter_mut() {
+                style.height = Val::Percent(40.0);
+            }
+            log_viewer_res.fullscreen = false;
+        }
+        LogViewerSize::Toggle => {
+            for mut style in log_viewer_query.iter_mut() {
+                match style.height {
+                    Val::Percent(100.0) => {
+                        style.height = Val::Percent(40.0);
+                        log_viewer_res.fullscreen = false;
+                    }
+                    _ => {
+                        style.height = Val::Percent(100.0);
+                        log_viewer_res.fullscreen = true;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -342,6 +438,17 @@ fn on_close_button(
     for interaction in &mut interaction_query {
         if matches!(*interaction, Interaction::Pressed) {
             commands.trigger(LogViewerVisibility::Hide);
+        }
+    }
+}
+
+fn on_fullscreen_button(
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SizeButton>)>,
+    mut commands: Commands,
+) {
+    for interaction in &mut interaction_query {
+        if matches!(*interaction, Interaction::Pressed) {
+            commands.trigger(LogViewerSize::Toggle);
         }
     }
 }
