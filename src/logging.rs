@@ -76,11 +76,17 @@ pub fn plugin(app: &mut App) {
 
     app.observe(handle_log_viewer_visibilty);
     app.observe(handle_log_viewer_fullscreen);
+    app.observe(handle_log_viewer_clear);
 
     app.add_systems(Startup, setup_log_viewer_ui);
     app.add_systems(
         Update,
-        (update_log_ui, on_close_button, on_fullscreen_button),
+        (
+            update_log_ui,
+            on_close_button,
+            on_fullscreen_button,
+            on_clear_button,
+        ),
     );
 }
 
@@ -115,6 +121,9 @@ pub enum LogViewerSize {
     Toggle,
 }
 
+#[derive(Event, Reflect, Debug, Clone, Copy)]
+pub struct ClearLogs;
+
 #[derive(Component)]
 struct LogViewerMarker;
 
@@ -122,10 +131,16 @@ struct LogViewerMarker;
 struct ListMarker;
 
 #[derive(Component)]
+struct LogLineMarker;
+
+#[derive(Component)]
 struct CloseButton;
 
 #[derive(Component)]
 struct SizeButton;
+
+#[derive(Component)]
+struct ClearButton;
 
 fn setup_log_viewer_ui(mut commands: Commands) {
     commands.insert_resource(LogViewer::default());
@@ -255,6 +270,33 @@ fn setup_log_viewer_ui(mut commands: Commands) {
                                 },
                                 ..default()
                             },
+                            Name::new("size_btn"),
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn((
+                                ButtonBundle {
+                                    background_color: Color::srgb_u8(255, 188, 46).into(),
+                                    border_radius: BorderRadius::all(Val::Px(20.)),
+                                    style: Style {
+                                        width: Val::Px(20.),
+                                        height: Val::Px(20.),
+                                        ..default()
+                                    },
+                                    ..default()
+                                },
+                                ClearButton,
+                            ));
+                        });
+                    parent
+                        .spawn((
+                            NodeBundle {
+                                style: Style {
+                                    padding: UiRect::all(Val::Px(5.)),
+                                    align_items: AlignItems::End,
+                                    ..default()
+                                },
+                                ..default()
+                            },
                             Name::new("close_logs_btn"),
                         ))
                         .with_children(|parent| {
@@ -331,6 +373,17 @@ fn handle_log_viewer_visibilty(
     }
 }
 
+fn handle_log_viewer_clear(
+    _trigger: Trigger<ClearLogs>,
+    mut log_viewer_query: Query<(Entity, &Parent), With<LogLineMarker>>,
+    mut commands: Commands,
+) {
+    for (entity, parent) in log_viewer_query.iter_mut() {
+        commands.entity(parent.get()).remove_children(&[entity]);
+        commands.entity(entity).despawn_recursive();
+    }
+}
+
 fn handle_log_viewer_fullscreen(
     trigger: Trigger<LogViewerSize>,
     mut log_viewer_query: Query<&mut Style, With<LogViewerMarker>>,
@@ -377,6 +430,7 @@ fn update_log_ui(
                 .spawn((
                     logline_text(e),
                     Label,
+                    LogLineMarker,
                     AccessibilityNode(NodeBuilder::new(Role::ListItem)),
                 ))
                 .id();
@@ -438,6 +492,17 @@ fn on_close_button(
     for interaction in &mut interaction_query {
         if matches!(*interaction, Interaction::Pressed) {
             commands.trigger(LogViewerVisibility::Hide);
+        }
+    }
+}
+
+fn on_clear_button(
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<ClearButton>)>,
+    mut commands: Commands,
+) {
+    for interaction in &mut interaction_query {
+        if matches!(*interaction, Interaction::Pressed) {
+            commands.trigger(ClearLogs);
         }
     }
 }
