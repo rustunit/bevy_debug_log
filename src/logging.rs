@@ -12,6 +12,8 @@ use bevy::{
     utils::tracing,
     utils::tracing::Subscriber,
 };
+use time::format_description::well_known::Iso8601;
+use time::OffsetDateTime;
 
 const RENDER_LAYER: usize = 55;
 
@@ -19,6 +21,7 @@ const RENDER_LAYER: usize = 55;
 struct LogEvent {
     message: String,
     metadata: &'static tracing::Metadata<'static>,
+    timestamp: OffsetDateTime,
 }
 
 #[derive(Deref, DerefMut)]
@@ -54,6 +57,7 @@ impl<S: Subscriber> Layer<S> for CaptureLayer {
                 .send(LogEvent {
                     message,
                     metadata: event.metadata(),
+                    timestamp: OffsetDateTime::now_utc(),
                 })
                 .expect("Sending log event should not fail");
         }
@@ -503,7 +507,18 @@ fn logline_text(event: &LogEvent) -> TextBundle {
 
     TextBundle::from_sections([
         TextSection::new(
-            format!("{} ", level),
+            event
+                .timestamp
+                .format(&Iso8601::DEFAULT)
+                .unwrap_or("timestamp error".to_string()),
+            TextStyle {
+                font_size: LOG_LINE_FONT_SIZE,
+                color: css::WHITE.with_alpha(0.5).into(),
+                ..default()
+            },
+        ),
+        TextSection::new(
+            format!(" {} ", level),
             TextStyle {
                 font_size: LOG_LINE_FONT_SIZE,
                 color: color.into(),
