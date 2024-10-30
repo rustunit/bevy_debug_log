@@ -15,6 +15,8 @@ use bevy::{
 use time::format_description::well_known::Iso8601;
 use time::OffsetDateTime;
 
+use crate::utils::{self, CheckboxIconMarker};
+
 const RENDER_LAYER: usize = 55;
 
 #[derive(Debug, Event, Clone)]
@@ -105,11 +107,13 @@ impl Plugin for LogViewerPlugin {
 
         app.insert_resource(LogViewer {
             auto_open_threshold: self.auto_open_threshold,
+            auto_open_enabled: self.auto_open_threshold != LevelFilter::OFF,
             ..default()
         });
         app.observe(handle_log_viewer_visibilty);
         app.observe(handle_log_viewer_fullscreen);
         app.observe(handle_log_viewer_clear);
+        app.observe(handle_auto_open_check);
 
         app.add_systems(Startup, setup_log_viewer_ui);
         app.add_systems(
@@ -119,6 +123,7 @@ impl Plugin for LogViewerPlugin {
                 on_close_button,
                 on_fullscreen_button,
                 on_clear_button,
+                on_auto_open_check,
             ),
         );
     }
@@ -140,6 +145,7 @@ struct LogViewer {
     visible: bool,
     fullscreen: bool,
     auto_open_threshold: LevelFilter,
+    auto_open_enabled: bool,
 }
 
 impl Default for LogViewer {
@@ -148,6 +154,7 @@ impl Default for LogViewer {
             auto_open_threshold: LevelFilter::OFF,
             visible: false,
             fullscreen: false,
+            auto_open_enabled: false,
         }
     }
 }
@@ -169,6 +176,9 @@ pub enum LogViewerSize {
 #[derive(Event, Reflect, Debug, Clone, Copy)]
 pub struct ClearLogs;
 
+#[derive(Event, Reflect, Debug, Clone, Copy)]
+pub struct AutoOpenToggle;
+
 #[derive(Component)]
 struct LogViewerMarker;
 
@@ -184,10 +194,13 @@ struct CloseButton;
 #[derive(Component)]
 struct SizeButton;
 
+#[derive(Component, Clone)]
+struct AutoCheckBox;
+
 #[derive(Component)]
 struct ClearButton;
 
-fn setup_log_viewer_ui(mut commands: Commands) {
+fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
     commands.spawn((
         Camera2dBundle {
             camera: Camera {
@@ -389,6 +402,28 @@ fn setup_log_viewer_ui(mut commands: Commands) {
                         ListMarker,
                     ));
                 });
+            // Footer
+            parent
+                .spawn((
+                    NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Row,
+                            justify_content: JustifyContent::End,
+                            ..default()
+                        },
+                        ..default()
+                    },
+                    Name::new("footer_bar"),
+                ))
+                .with_children(|parent| {
+                    utils::spawn_checkbox(
+                        parent,
+                        AutoCheckBox,
+                        "auto-open-checkbox",
+                        log_viewer_res.auto_open_enabled,
+                        "Open automatically".into(),
+                    );
+                });
         });
 }
 
@@ -462,6 +497,22 @@ fn handle_log_viewer_fullscreen(
     }
 }
 
+fn handle_auto_open_check(
+    _trigger: Trigger<AutoOpenToggle>,
+    mut log_viewer_res: ResMut<LogViewer>,
+    mut checkbox_query: Query<&mut Style, With<CheckboxIconMarker>>,
+) {
+    log_viewer_res.auto_open_enabled = !log_viewer_res.auto_open_enabled;
+
+    for mut style in checkbox_query.iter_mut() {
+        style.display = if log_viewer_res.auto_open_enabled {
+            Display::Flex
+        } else {
+            Display::None
+        };
+    }
+}
+
 fn update_log_ui(
     mut events: EventReader<LogEvent>,
     mut commands: Commands,
@@ -482,7 +533,10 @@ fn update_log_ui(
             commands.entity(parent).insert_children(0, &[child_entity]);
         }
         // If the log viewer is not visible, check if the log event should trigger it to open.
-        if !log_viewer_res.visible && *e.metadata.level() <= log_viewer_res.auto_open_threshold {
+        if log_viewer_res.auto_open_enabled
+            && !log_viewer_res.visible
+            && *e.metadata.level() <= log_viewer_res.auto_open_threshold
+        {
             commands.trigger(LogViewerVisibility::Show);
         }
     }
@@ -573,6 +627,17 @@ fn on_fullscreen_button(
     for interaction in &mut interaction_query {
         if matches!(*interaction, Interaction::Pressed) {
             commands.trigger(LogViewerSize::Toggle);
+        }
+    }
+}
+
+fn on_auto_open_check(
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<AutoCheckBox>)>,
+    mut commands: Commands,
+) {
+    for interaction in &mut interaction_query {
+        if matches!(*interaction, Interaction::Pressed) {
+            commands.trigger(AutoOpenToggle);
         }
     }
 }
