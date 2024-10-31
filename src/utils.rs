@@ -47,15 +47,15 @@ pub(crate) fn spawn_checkbox<B: Bundle + Clone>(
                                 align_self: AlignSelf::Center,
                                 width: Val::Px(10.),
                                 height: Val::Px(10.),
+                                display: if checked {
+                                    Display::Flex
+                                } else {
+                                    Display::None
+                                },
                                 ..default()
                             },
                             border_radius: BorderRadius::all(Val::Px(3.)),
                             background_color: Color::WHITE.into(),
-                            visibility: if checked {
-                                Visibility::Visible
-                            } else {
-                                Visibility::Hidden
-                            },
                             ..default()
                         },
                         CheckboxIconMarker,

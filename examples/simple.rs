@@ -22,7 +22,7 @@ fn main() {
                 custom_layer: bevy_debug_log::log_capture_layer,
             }),
     );
-    app.add_plugins(bevy_debug_log::LogViewerPlugin::new());
+    app.add_plugins(bevy_debug_log::LogViewerPlugin::default());
     app.add_systems(Startup, setup);
     app.add_systems(Update, toggle_log);
     app.run();

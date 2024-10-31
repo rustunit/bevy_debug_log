@@ -1,3 +1,4 @@
+use std::num::NonZero;
 use std::sync::mpsc;
 
 use bevy::a11y::accesskit::{NodeBuilder, Role};
@@ -12,7 +13,7 @@ use bevy::{
     utils::tracing,
     utils::tracing::Subscriber,
 };
-use time::format_description::well_known::Iso8601;
+use time::format_description::well_known::iso8601;
 use time::OffsetDateTime;
 
 use crate::utils::{self, CheckboxIconMarker};
@@ -90,10 +91,6 @@ impl Default for LogViewerPlugin {
 }
 
 impl LogViewerPlugin {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn auto_open_threshold(mut self, level_filter: LevelFilter) -> Self {
         self.auto_open_threshold = level_filter;
         self
@@ -118,13 +115,7 @@ impl Plugin for LogViewerPlugin {
         app.add_systems(Startup, setup_log_viewer_ui);
         app.add_systems(
             Update,
-            (
-                update_log_ui,
-                on_close_button,
-                on_fullscreen_button,
-                on_clear_button,
-                on_auto_open_check,
-            ),
+            (update_log_ui, on_traffic_light_button, on_auto_open_check),
         );
     }
 }
@@ -189,16 +180,14 @@ struct ListMarker;
 struct LogLineMarker;
 
 #[derive(Component)]
-struct CloseButton;
-
-#[derive(Component)]
-struct SizeButton;
+enum TrafficLightButton {
+    Red,
+    Yellow,
+    Green,
+}
 
 #[derive(Component, Clone)]
 struct AutoCheckBox;
-
-#[derive(Component)]
-struct ClearButton;
 
 fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
     commands.spawn((
@@ -313,7 +302,7 @@ fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
                                     },
                                     ..default()
                                 },
-                                SizeButton,
+                                TrafficLightButton::Green,
                             ));
                         });
                     parent
@@ -340,7 +329,7 @@ fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
                                     },
                                     ..default()
                                 },
-                                ClearButton,
+                                TrafficLightButton::Yellow,
                             ));
                         });
                     parent
@@ -367,10 +356,43 @@ fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
                                     },
                                     ..default()
                                 },
-                                CloseButton,
+                                TrafficLightButton::Red,
                             ));
                         });
                 });
+            // Toolbar
+            // Show only if auto-open is enabled
+            if log_viewer_res.auto_open_threshold != LevelFilter::OFF {
+                let level = match log_viewer_res.auto_open_threshold {
+                    LevelFilter::OFF => unreachable!(),
+                    LevelFilter::ERROR => "Error",
+                    LevelFilter::WARN => "Warn",
+                    LevelFilter::INFO => "Info",
+                    LevelFilter::DEBUG => "Debug",
+                    LevelFilter::TRACE => "Trace",
+                };
+                parent
+                    .spawn((
+                        NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Row,
+                                justify_content: JustifyContent::End,
+                                ..default()
+                            },
+                            ..default()
+                        },
+                        Name::new("tool_bar"),
+                    ))
+                    .with_children(|parent| {
+                        utils::spawn_checkbox(
+                            parent,
+                            AutoCheckBox,
+                            "auto-open-checkbox",
+                            log_viewer_res.auto_open_enabled,
+                            format!("Auto-open on {}", level),
+                        );
+                    });
+            }
             // List Container
             parent
                 .spawn((
@@ -401,28 +423,6 @@ fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
                         Name::new("list"),
                         ListMarker,
                     ));
-                });
-            // Footer
-            parent
-                .spawn((
-                    NodeBundle {
-                        style: Style {
-                            flex_direction: FlexDirection::Row,
-                            justify_content: JustifyContent::End,
-                            ..default()
-                        },
-                        ..default()
-                    },
-                    Name::new("footer_bar"),
-                ))
-                .with_children(|parent| {
-                    utils::spawn_checkbox(
-                        parent,
-                        AutoCheckBox,
-                        "auto-open-checkbox",
-                        log_viewer_res.auto_open_enabled,
-                        "Open automatically".into(),
-                    );
                 });
         });
 }
@@ -563,7 +563,7 @@ fn logline_text(event: &LogEvent) -> TextBundle {
         TextSection::new(
             event
                 .timestamp
-                .format(&Iso8601::DEFAULT)
+                .format(&iso8601::Iso8601::<{ iso8601_with_two_digit_secs() }> {})
                 .unwrap_or("timestamp error".to_string()),
             TextStyle {
                 font_size: LOG_LINE_FONT_SIZE,
@@ -598,35 +598,17 @@ fn logline_text(event: &LogEvent) -> TextBundle {
     ])
 }
 
-fn on_close_button(
-    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<CloseButton>)>,
+fn on_traffic_light_button(
+    mut interaction_query: Query<(&TrafficLightButton, &Interaction), Changed<Interaction>>,
     mut commands: Commands,
 ) {
-    for interaction in &mut interaction_query {
+    for (button, interaction) in &mut interaction_query {
         if matches!(*interaction, Interaction::Pressed) {
-            commands.trigger(LogViewerVisibility::Hide);
-        }
-    }
-}
-
-fn on_clear_button(
-    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<ClearButton>)>,
-    mut commands: Commands,
-) {
-    for interaction in &mut interaction_query {
-        if matches!(*interaction, Interaction::Pressed) {
-            commands.trigger(ClearLogs);
-        }
-    }
-}
-
-fn on_fullscreen_button(
-    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SizeButton>)>,
-    mut commands: Commands,
-) {
-    for interaction in &mut interaction_query {
-        if matches!(*interaction, Interaction::Pressed) {
-            commands.trigger(LogViewerSize::Toggle);
+            match button {
+                TrafficLightButton::Red => commands.trigger(LogViewerVisibility::Hide),
+                TrafficLightButton::Yellow => commands.trigger(ClearLogs),
+                TrafficLightButton::Green => commands.trigger(LogViewerSize::Toggle),
+            }
         }
     }
 }
@@ -640,4 +622,19 @@ fn on_auto_open_check(
             commands.trigger(AutoOpenToggle);
         }
     }
+}
+
+/// ISO 8601 Config with two decimal digits for seconds.
+const fn iso8601_with_two_digit_secs() -> u128 {
+    // This is a hack to get around .unwrap() not being stable as a const fn
+    const TWO: NonZero<u8> = match NonZero::new(2) {
+        Some(two) => two,
+        None => unreachable!(),
+    };
+
+    iso8601::Config::DEFAULT
+        .set_time_precision(iso8601::TimePrecision::Second {
+            decimal_digits: Some(TWO),
+        })
+        .encode()
 }
