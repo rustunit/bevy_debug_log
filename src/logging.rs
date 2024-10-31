@@ -54,7 +54,7 @@ impl<S: Subscriber> Layer<S> for CaptureLayer {
                     message,
                     metadata: event.metadata(),
                 })
-                .expect("LogEvents resource no longer exists!");
+                .expect("Sending log event should not fail");
         }
     }
 }
