@@ -248,6 +248,7 @@ fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
                                 style: Style {
                                     align_content: AlignContent::Stretch,
                                     justify_self: JustifySelf::Center,
+                                    align_self: AlignSelf::Center,
                                     padding: UiRect::all(Val::Px(5.)),
                                     ..default()
                                 },
@@ -278,6 +279,37 @@ fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
                         },
                         Name::new("title_bar_spacer"),
                     ));
+                    // Show checkbox only when auto-open is enabled
+                    if log_viewer_res.auto_open_threshold != LevelFilter::OFF {
+                        let level = match log_viewer_res.auto_open_threshold {
+                            LevelFilter::OFF => unreachable!(),
+                            LevelFilter::ERROR => "Error",
+                            LevelFilter::WARN => "Warn",
+                            LevelFilter::INFO => "Info",
+                            LevelFilter::DEBUG => "Debug",
+                            LevelFilter::TRACE => "Trace",
+                        };
+                        parent
+                            .spawn((
+                                NodeBundle {
+                                    style: Style {
+                                        align_items: AlignItems::End,
+                                        ..default()
+                                    },
+                                    ..default()
+                                },
+                                Name::new("auto-open"),
+                            ))
+                            .with_children(|parent| {
+                                utils::spawn_checkbox(
+                                    parent,
+                                    AutoCheckBox,
+                                    "auto-open-checkbox",
+                                    log_viewer_res.auto_open_enabled,
+                                    format!("Auto-open on {}", level),
+                                );
+                            });
+                    }
                     parent
                         .spawn((
                             NodeBundle {
@@ -315,7 +347,7 @@ fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
                                 },
                                 ..default()
                             },
-                            Name::new("size_btn"),
+                            Name::new("clear_btn"),
                         ))
                         .with_children(|parent| {
                             parent.spawn((
@@ -360,39 +392,6 @@ fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
                             ));
                         });
                 });
-            // Toolbar
-            // Show only if auto-open is enabled
-            if log_viewer_res.auto_open_threshold != LevelFilter::OFF {
-                let level = match log_viewer_res.auto_open_threshold {
-                    LevelFilter::OFF => unreachable!(),
-                    LevelFilter::ERROR => "Error",
-                    LevelFilter::WARN => "Warn",
-                    LevelFilter::INFO => "Info",
-                    LevelFilter::DEBUG => "Debug",
-                    LevelFilter::TRACE => "Trace",
-                };
-                parent
-                    .spawn((
-                        NodeBundle {
-                            style: Style {
-                                flex_direction: FlexDirection::Row,
-                                justify_content: JustifyContent::End,
-                                ..default()
-                            },
-                            ..default()
-                        },
-                        Name::new("tool_bar"),
-                    ))
-                    .with_children(|parent| {
-                        utils::spawn_checkbox(
-                            parent,
-                            AutoCheckBox,
-                            "auto-open-checkbox",
-                            log_viewer_res.auto_open_enabled,
-                            format!("Auto-open on {}", level),
-                        );
-                    });
-            }
             // List Container
             parent
                 .spawn((
