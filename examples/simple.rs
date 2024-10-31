@@ -5,15 +5,6 @@ use bevy::{
 use bevy_debug_log::LogViewerVisibility;
 
 fn main() {
-    App::new().add_plugins((
-        DefaultPlugins.set(LogPlugin {
-            filter: "info".into(),
-            level: bevy::log::Level::INFO,
-            custom_layer: bevy_debug_log::log_capture_layer,
-        }),
-        bevy_debug_log::plugin,
-    ));
-
     let mut app = App::new();
     app.add_plugins(
         DefaultPlugins
