@@ -483,7 +483,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_debug_log"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bevy",
  "pretty_assertions",
@@ -3429,6 +3429,7 @@ checksum = "5dfd88e563464686c916c7e46e623e520ddc6d79fa6641390f2e3fa86e83e885"
 dependencies = [
  "deranged",
  "itoa",
+ "js-sys",
  "num-conv",
  "powerfmt",
  "serde",
