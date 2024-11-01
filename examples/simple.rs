@@ -33,8 +33,12 @@ fn toggle_log(mut commands: Commands, keyboard: Res<ButtonInput<KeyCode>>) {
         commands.trigger(LogViewerVisibility::Toggle);
 
         info!("toggle log!");
-        warn!("toggle log!");
-        error!("toggle log!");
+    } else if keyboard.just_pressed(KeyCode::Digit1) {
+        info!("info log");
+    } else if keyboard.just_pressed(KeyCode::Digit2) {
+        warn!("warn log");
+    } else if keyboard.just_pressed(KeyCode::Digit3) {
+        error!("error log");
     }
 }
 
@@ -52,13 +56,18 @@ fn setup(
     });
 
     commands.spawn(
-        TextBundle::from_section("Press space to toggle log", TextStyle::default()).with_style(
-            Style {
-                position_type: PositionType::Absolute,
-                bottom: Val::Px(12.0),
-                left: Val::Px(12.0),
+        TextBundle::from_section(
+            "Press space to toggle log window.\nPress 1-3 for logs.",
+            TextStyle {
+                font_size: 18.,
                 ..default()
             },
-        ),
+        )
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(12.0),
+            left: Val::Px(12.0),
+            ..default()
+        }),
     );
 }

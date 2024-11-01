@@ -85,7 +85,7 @@ pub struct LogViewerPlugin {
 impl Default for LogViewerPlugin {
     fn default() -> Self {
         Self {
-            auto_open_threshold: LevelFilter::OFF,
+            auto_open_threshold: LevelFilter::ERROR,
         }
     }
 }
