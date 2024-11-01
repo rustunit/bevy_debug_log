@@ -16,6 +16,7 @@ bevy = { version = "0.14", default-features = false, features = [
     "default_font",
     "bevy_ui",
 ] }
+time = { version = "0.3.36", features = ["formatting"] }
 
 [dev-dependencies]
 pretty_assertions = "1"
