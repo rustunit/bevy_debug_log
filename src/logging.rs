@@ -4,7 +4,7 @@ use std::sync::mpsc;
 use bevy::a11y::accesskit::{NodeBuilder, Role};
 use bevy::a11y::AccessibilityNode;
 use bevy::color::palettes::css;
-use bevy::log::{BoxedLayer, Level};
+use bevy::log::BoxedLayer;
 use bevy::render::view::visibility::RenderLayers;
 use bevy::utils::tracing::level_filters::LevelFilter;
 use bevy::{
@@ -16,7 +16,8 @@ use bevy::{
 use time::format_description::well_known::iso8601;
 use time::OffsetDateTime;
 
-use crate::utils::{self, CheckboxIconMarker};
+use crate::debug_log_level::DebugLogLevel;
+use crate::utils::{self, CheckboxIconMarker, ChipLeadingTextMarker};
 
 const RENDER_LAYER: usize = 55;
 
@@ -102,7 +103,7 @@ impl Plugin for LogViewerPlugin {
         app.add_event::<LogEvent>();
         app.add_systems(Update, transfer_log_events);
 
-        app.insert_resource(LogViewer {
+        app.insert_resource(LogViewerState {
             auto_open_threshold: self.auto_open_threshold,
             auto_open_enabled: self.auto_open_threshold != LevelFilter::OFF,
             ..default()
@@ -111,11 +112,17 @@ impl Plugin for LogViewerPlugin {
         app.observe(handle_log_viewer_fullscreen);
         app.observe(handle_log_viewer_clear);
         app.observe(handle_auto_open_check);
+        app.observe(handle_level_filter_chip_toggle);
 
         app.add_systems(Startup, setup_log_viewer_ui);
         app.add_systems(
             Update,
-            (update_log_ui, on_traffic_light_button, on_auto_open_check),
+            (
+                update_log_ui,
+                on_traffic_light_button,
+                on_auto_open_check,
+                on_level_filter_chip,
+            ),
         );
     }
 }
@@ -132,20 +139,30 @@ pub fn log_capture_layer(app: &mut App) -> Option<BoxedLayer> {
 }
 
 #[derive(Resource)]
-struct LogViewer {
+struct LogViewerState {
     visible: bool,
     fullscreen: bool,
     auto_open_threshold: LevelFilter,
     auto_open_enabled: bool,
+    error_visible: bool,
+    warn_visible: bool,
+    info_visible: bool,
+    debug_visible: bool,
+    trace_visible: bool,
 }
 
-impl Default for LogViewer {
+impl Default for LogViewerState {
     fn default() -> Self {
         Self {
             auto_open_threshold: LevelFilter::OFF,
             visible: false,
             fullscreen: false,
             auto_open_enabled: false,
+            error_visible: true,
+            warn_visible: true,
+            info_visible: true,
+            debug_visible: true,
+            trace_visible: true,
         }
     }
 }
@@ -186,10 +203,77 @@ enum TrafficLightButton {
     Green,
 }
 
+#[derive(Component, Clone, Copy, PartialEq, Debug)]
+enum LevelFilterChip {
+    Error,
+    Warn,
+    Info,
+    Debug,
+    Trace,
+}
+
+#[derive(Event)]
+struct ChipToggle(LevelFilterChip);
+
+#[derive(Component)]
+struct ErrLogLineMarker;
+
+type WithOnlyErrLogLine = (
+    With<ErrLogLineMarker>,
+    Without<WarnLogLineMarker>,
+    Without<InfoLogLineMarker>,
+    Without<DebugLogLineMarker>,
+    Without<TraceLogLineMarker>,
+);
+
+#[derive(Component)]
+struct WarnLogLineMarker;
+
+type WithOnlyWarnLogLine = (
+    Without<ErrLogLineMarker>,
+    With<WarnLogLineMarker>,
+    Without<InfoLogLineMarker>,
+    Without<DebugLogLineMarker>,
+    Without<TraceLogLineMarker>,
+);
+
+#[derive(Component)]
+struct InfoLogLineMarker;
+
+type WithOnlyInfoLogLine = (
+    Without<ErrLogLineMarker>,
+    Without<WarnLogLineMarker>,
+    With<InfoLogLineMarker>,
+    Without<DebugLogLineMarker>,
+    Without<TraceLogLineMarker>,
+);
+
+#[derive(Component)]
+struct DebugLogLineMarker;
+
+type WithOnlyDebugLogLine = (
+    Without<ErrLogLineMarker>,
+    Without<WarnLogLineMarker>,
+    Without<InfoLogLineMarker>,
+    With<DebugLogLineMarker>,
+    Without<TraceLogLineMarker>,
+);
+
+#[derive(Component)]
+struct TraceLogLineMarker;
+
+type WithOnlyTraceLogLine = (
+    Without<ErrLogLineMarker>,
+    Without<WarnLogLineMarker>,
+    Without<InfoLogLineMarker>,
+    Without<DebugLogLineMarker>,
+    With<TraceLogLineMarker>,
+);
+
 #[derive(Component, Clone)]
 struct AutoCheckBox;
 
-fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
+fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewerState>) {
     commands.spawn((
         Camera2dBundle {
             camera: Camera {
@@ -242,32 +326,56 @@ fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
                     Name::new("title_bar"),
                 ))
                 .with_children(|parent| {
-                    parent
-                        .spawn((
-                            NodeBundle {
-                                style: Style {
-                                    align_content: AlignContent::Stretch,
-                                    justify_self: JustifySelf::Center,
-                                    align_self: AlignSelf::Center,
-                                    padding: UiRect::all(Val::Px(5.)),
-                                    ..default()
-                                },
-                                ..default()
-                            },
-                            Name::new("title_text"),
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((
-                                TextBundle::from_section(
-                                    "Logs",
-                                    TextStyle {
-                                        font_size: 14.,
-                                        ..default()
-                                    },
-                                ),
-                                Label,
-                            ));
-                        });
+                    utils::spawn_chip(
+                        parent,
+                        LevelFilterChip::Error,
+                        DebugLogLevel::ERROR.into(),
+                        "0".into(),
+                        "E".into(),
+                        log_viewer_res.error_visible,
+                        "error_swtich",
+                    );
+
+                    utils::spawn_chip(
+                        parent,
+                        LevelFilterChip::Warn,
+                        DebugLogLevel::WARN.into(),
+                        "0".into(),
+                        "W".into(),
+                        log_viewer_res.warn_visible,
+                        "warn_swtich",
+                    );
+
+                    utils::spawn_chip(
+                        parent,
+                        LevelFilterChip::Info,
+                        DebugLogLevel::INFO.into(),
+                        "0".into(),
+                        "I".into(),
+                        log_viewer_res.info_visible,
+                        "info_swtich",
+                    );
+
+                    utils::spawn_chip(
+                        parent,
+                        LevelFilterChip::Debug,
+                        DebugLogLevel::DEBUG.into(),
+                        "0".into(),
+                        "D".into(),
+                        log_viewer_res.debug_visible,
+                        "debug_swtich",
+                    );
+
+                    utils::spawn_chip(
+                        parent,
+                        LevelFilterChip::Trace,
+                        DebugLogLevel::TRACE.into(),
+                        "0".into(),
+                        "T".into(),
+                        log_viewer_res.trace_visible,
+                        "trace_swtich",
+                    );
+
                     parent.spawn((
                         NodeBundle {
                             style: Style {
@@ -281,14 +389,11 @@ fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
                     ));
                     // Show checkbox only when auto-open is enabled
                     if log_viewer_res.auto_open_threshold != LevelFilter::OFF {
-                        let level = match log_viewer_res.auto_open_threshold {
-                            LevelFilter::OFF => unreachable!(),
-                            LevelFilter::ERROR => "Error",
-                            LevelFilter::WARN => "Warn",
-                            LevelFilter::INFO => "Info",
-                            LevelFilter::DEBUG => "Debug",
-                            LevelFilter::TRACE => "Trace",
-                        };
+                        // This cannot fail because LevelFilter cannot be OFF here
+                        let level: DebugLogLevel = log_viewer_res
+                            .auto_open_threshold
+                            .try_into()
+                            .expect("LevelFilter should be convertible to DebugLogLevel");
                         parent
                             .spawn((
                                 NodeBundle {
@@ -306,7 +411,7 @@ fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
                                     AutoCheckBox,
                                     "auto-open-checkbox",
                                     log_viewer_res.auto_open_enabled,
-                                    format!("Auto-open on {}", level),
+                                    format!("Auto-open on {}", level.title_case()),
                                 );
                             });
                     }
@@ -429,7 +534,7 @@ fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer>) {
 fn handle_log_viewer_visibilty(
     trigger: Trigger<LogViewerVisibility>,
     mut log_viewer_query: Query<&mut Style, With<LogViewerMarker>>,
-    mut log_viewer_res: ResMut<LogViewer>,
+    mut log_viewer_res: ResMut<LogViewerState>,
 ) {
     let visible = match trigger.event() {
         LogViewerVisibility::Show => true,
@@ -464,7 +569,7 @@ fn handle_log_viewer_clear(
 fn handle_log_viewer_fullscreen(
     trigger: Trigger<LogViewerSize>,
     mut log_viewer_query: Query<&mut Style, With<LogViewerMarker>>,
-    mut log_viewer_res: ResMut<LogViewer>,
+    mut log_viewer_res: ResMut<LogViewerState>,
 ) {
     match trigger.event() {
         LogViewerSize::Big => {
@@ -498,7 +603,7 @@ fn handle_log_viewer_fullscreen(
 
 fn handle_auto_open_check(
     _trigger: Trigger<AutoOpenToggle>,
-    mut log_viewer_res: ResMut<LogViewer>,
+    mut log_viewer_res: ResMut<LogViewerState>,
     mut checkbox_query: Query<&mut Style, With<CheckboxIconMarker>>,
 ) {
     log_viewer_res.auto_open_enabled = !log_viewer_res.auto_open_enabled;
@@ -512,12 +617,129 @@ fn handle_auto_open_check(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+fn handle_level_filter_chip_toggle(
+    trigger: Trigger<ChipToggle>,
+    mut chip_query: Query<
+        (&mut BackgroundColor, &mut BorderColor, &LevelFilterChip),
+        With<LevelFilterChip>,
+    >,
+    mut log_viewer_res: ResMut<LogViewerState>,
+    mut err_logline_query: Query<&mut Style, WithOnlyErrLogLine>,
+    mut warn_logline_query: Query<&mut Style, WithOnlyWarnLogLine>,
+    mut info_logline_query: Query<&mut Style, WithOnlyInfoLogLine>,
+    mut debug_logline_query: Query<&mut Style, WithOnlyDebugLogLine>,
+    mut trace_logline_query: Query<&mut Style, WithOnlyTraceLogLine>,
+) {
+    for (mut bg_color, mut border_color, chip) in chip_query.iter_mut() {
+        if trigger.event().0 == *chip {
+            let BackgroundColor(color) = *bg_color;
+
+            // If the color has an alpha value > 0, it means it's already selected.
+            if color.alpha() != 0. {
+                // Deselect the chip, make the background transparent and the border white.
+                *bg_color = color.with_alpha(0.).into();
+                *border_color = css::WHITE.into();
+                // Hide the log lines of the deselected chip.
+                match *chip {
+                    LevelFilterChip::Error => {
+                        for mut style in err_logline_query.iter_mut() {
+                            log_viewer_res.error_visible = false;
+                            style.display = Display::None;
+                        }
+                    }
+                    LevelFilterChip::Warn => {
+                        for mut style in warn_logline_query.iter_mut() {
+                            log_viewer_res.warn_visible = false;
+                            style.display = Display::None;
+                        }
+                    }
+                    LevelFilterChip::Info => {
+                        for mut style in info_logline_query.iter_mut() {
+                            log_viewer_res.info_visible = false;
+                            style.display = Display::None;
+                        }
+                    }
+                    LevelFilterChip::Debug => {
+                        for mut style in debug_logline_query.iter_mut() {
+                            log_viewer_res.debug_visible = false;
+                            style.display = Display::None;
+                        }
+                    }
+                    LevelFilterChip::Trace => {
+                        for mut style in trace_logline_query.iter_mut() {
+                            log_viewer_res.trace_visible = false;
+                            style.display = Display::None;
+                        }
+                    }
+                }
+            } else {
+                // Select the chip, make the background translucent and the border solid.
+                *bg_color = color.with_alpha(0.25).into();
+                *border_color = color.with_alpha(1.).into();
+                // Show the log lines that match the chip's level.
+                match *chip {
+                    LevelFilterChip::Error => {
+                        for mut style in err_logline_query.iter_mut() {
+                            log_viewer_res.error_visible = true;
+                            style.display = Display::Flex;
+                        }
+                    }
+                    LevelFilterChip::Warn => {
+                        for mut style in warn_logline_query.iter_mut() {
+                            log_viewer_res.warn_visible = true;
+                            style.display = Display::Flex;
+                        }
+                    }
+                    LevelFilterChip::Info => {
+                        for mut style in info_logline_query.iter_mut() {
+                            log_viewer_res.info_visible = true;
+                            style.display = Display::Flex;
+                        }
+                    }
+                    LevelFilterChip::Debug => {
+                        for mut style in debug_logline_query.iter_mut() {
+                            log_viewer_res.debug_visible = true;
+                            style.display = Display::Flex;
+                        }
+                    }
+                    LevelFilterChip::Trace => {
+                        for mut style in trace_logline_query.iter_mut() {
+                            log_viewer_res.trace_visible = true;
+                            style.display = Display::Flex;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn update_log_ui(
     mut events: EventReader<LogEvent>,
     mut commands: Commands,
     mut query: Query<Entity, With<ListMarker>>,
-    log_viewer_res: Res<LogViewer>,
+    log_viewer_res: Res<LogViewerState>,
+    mut chip_query: Query<(&mut Text, &LevelFilterChip), With<ChipLeadingTextMarker>>,
+    err_logline_query: Query<&mut Style, WithOnlyErrLogLine>,
+    warn_logline_query: Query<&mut Style, WithOnlyWarnLogLine>,
+    info_logline_query: Query<&mut Style, WithOnlyInfoLogLine>,
+    debug_logline_query: Query<&mut Style, WithOnlyDebugLogLine>,
+    trace_logline_query: Query<&mut Style, WithOnlyTraceLogLine>,
 ) {
+    // Update the count of log lines for each chip.
+    for (mut text, chip) in chip_query.iter_mut() {
+        let count = match *chip {
+            LevelFilterChip::Error => err_logline_query.iter().count(),
+            LevelFilterChip::Warn => warn_logline_query.iter().count(),
+            LevelFilterChip::Info => info_logline_query.iter().count(),
+            LevelFilterChip::Debug => debug_logline_query.iter().count(),
+            LevelFilterChip::Trace => trace_logline_query.iter().count(),
+        };
+        text.sections[0].value = count.to_string();
+    }
+
     for e in events.read() {
         if let Ok(parent) = query.get_single_mut() {
             let child_entity = commands
@@ -528,6 +750,65 @@ fn update_log_ui(
                     AccessibilityNode(NodeBuilder::new(Role::ListItem)),
                 ))
                 .id();
+
+            // Insert the relevant log line marker and set visibility based on the log level.
+            match *e.metadata.level() {
+                tracing::Level::ERROR => commands.entity(child_entity).insert((
+                    ErrLogLineMarker,
+                    Style {
+                        display: if log_viewer_res.error_visible {
+                            Display::Flex
+                        } else {
+                            Display::None
+                        },
+                        ..default()
+                    },
+                )),
+                tracing::Level::WARN => commands.entity(child_entity).insert((
+                    WarnLogLineMarker,
+                    Style {
+                        display: if log_viewer_res.warn_visible {
+                            Display::Flex
+                        } else {
+                            Display::None
+                        },
+                        ..default()
+                    },
+                )),
+                tracing::Level::INFO => commands.entity(child_entity).insert((
+                    InfoLogLineMarker,
+                    Style {
+                        display: if log_viewer_res.info_visible {
+                            Display::Flex
+                        } else {
+                            Display::None
+                        },
+                        ..default()
+                    },
+                )),
+                tracing::Level::DEBUG => commands.entity(child_entity).insert((
+                    DebugLogLineMarker,
+                    Style {
+                        display: if log_viewer_res.debug_visible {
+                            Display::Flex
+                        } else {
+                            Display::None
+                        },
+                        ..default()
+                    },
+                )),
+                tracing::Level::TRACE => commands.entity(child_entity).insert((
+                    TraceLogLineMarker,
+                    Style {
+                        display: if log_viewer_res.trace_visible {
+                            Display::Flex
+                        } else {
+                            Display::None
+                        },
+                        ..default()
+                    },
+                )),
+            };
 
             commands.entity(parent).insert_children(0, &[child_entity]);
         }
@@ -548,14 +829,7 @@ fn logline_text(event: &LogEvent) -> TextBundle {
     // INFO bevy_window::system: No windows are open, exiting
     // lvl^ ^^     target     ^^ ^^       message          ^^
 
-    let (level, color) = match *event.metadata.level() {
-        Level::ERROR => ("ERROR", css::RED),
-        Level::WARN => ("WARN", css::YELLOW),
-        Level::INFO => ("INFO", css::LIME),
-        Level::DEBUG => ("DEBUG", css::WHITE),
-        Level::TRACE => ("TRACE", css::WHITE.with_alpha(0.5)),
-    };
-
+    let dbg_level = DebugLogLevel::from(*event.metadata.level());
     const LOG_LINE_FONT_SIZE: f32 = 8.;
 
     TextBundle::from_sections([
@@ -571,10 +845,10 @@ fn logline_text(event: &LogEvent) -> TextBundle {
             },
         ),
         TextSection::new(
-            format!(" {} ", level),
+            dbg_level.to_string(),
             TextStyle {
                 font_size: LOG_LINE_FONT_SIZE,
-                color: color.into(),
+                color: dbg_level.into(),
                 ..default()
             },
         ),
@@ -619,6 +893,17 @@ fn on_auto_open_check(
     for interaction in &mut interaction_query {
         if matches!(*interaction, Interaction::Pressed) {
             commands.trigger(AutoOpenToggle);
+        }
+    }
+}
+
+fn on_level_filter_chip(
+    mut interaction_query: Query<(&LevelFilterChip, &Interaction), Changed<Interaction>>,
+    mut commands: Commands,
+) {
+    for (level, interaction) in &mut interaction_query {
+        if matches!(*interaction, Interaction::Pressed) {
+            commands.trigger(ChipToggle(*level));
         }
     }
 }

@@ -89,3 +89,109 @@ pub(crate) fn spawn_checkbox<B: Bundle + Clone>(
             ));
         });
 }
+
+#[derive(Component)]
+pub(crate) struct ChipMarker;
+
+#[derive(Component)]
+pub(crate) struct ChipLeadingTextMarker;
+
+pub(crate) fn spawn_chip<B: Bundle + Clone>(
+    children: &mut ChildBuilder,
+    bundle: B,
+    color: Color,
+    leading_text: String,
+    label_text: String,
+    active: bool,
+    name: &str,
+) {
+    children
+        .spawn((
+            ButtonBundle {
+                border_color: if active {
+                    color.into()
+                } else {
+                    Color::WHITE.into()
+                },
+                background_color: if active {
+                    color.with_alpha(0.25).into()
+                } else {
+                    {
+                        color.with_alpha(0.).into()
+                    }
+                },
+                border_radius: BorderRadius::all(Val::Px(20.)),
+                style: Style {
+                    border: UiRect::all(Val::Px(1.)),
+                    justify_content: JustifyContent::Center,
+                    align_self: AlignSelf::Center,
+                    margin: UiRect::all(Val::Px(1.)),
+                    ..default()
+                },
+                ..default()
+            },
+            ChipMarker,
+            bundle.clone(),
+            Name::new(name.to_string()),
+        ))
+        .with_children(|parent| {
+            parent
+                .spawn((
+                    // Circle with number of messages
+                    NodeBundle {
+                        style: Style {
+                            align_self: AlignSelf::Center,
+                            margin: UiRect::all(Val::Px(5.)),
+                            display: Display::Flex,
+                            min_height: Val::Px(10.),
+                            min_width: Val::Px(14.),
+                            ..default()
+                        },
+                        border_radius: BorderRadius::all(Val::Px(10.)),
+                        background_color: color.into(),
+                        ..default()
+                    },
+                    Name::new("chip_leading"),
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
+                        TextBundle::from_section(
+                            leading_text,
+                            TextStyle {
+                                font_size: 10.,
+                                color: Color::BLACK,
+                                ..default()
+                            },
+                        )
+                        .with_text_justify(JustifyText::Center)
+                        .with_style(Style {
+                            align_self: AlignSelf::Center,
+                            flex_grow: 1.,
+                            margin: UiRect::all(Val::Px(2.)),
+                            ..default()
+                        }),
+                        Label,
+                        bundle,
+                        ChipLeadingTextMarker,
+                    ));
+                });
+            parent.spawn((
+                TextBundle::from_section(
+                    label_text,
+                    TextStyle {
+                        font_size: 10.,
+                        ..default()
+                    },
+                )
+                .with_text_justify(JustifyText::Center)
+                .with_style(Style {
+                    align_self: AlignSelf::Center,
+                    margin: UiRect::right(Val::Px(5.)),
+                    flex_grow: 1.,
+                    ..default()
+                }),
+                Label,
+                Name::new("chip_label"),
+            ));
+        });
+}
