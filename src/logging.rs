@@ -63,7 +63,16 @@ impl<S: Subscriber> Layer<S> for CaptureLayer {
                     metadata: event.metadata(),
                     timestamp: OffsetDateTime::now_utc(),
                 })
-                .expect("Sending log event should not fail");
+                .inspect_err(|error| {
+                    eprintln!(
+                        "{}:{}:{} Couldn't to send log event to bevy_debug_log: {}",
+                        file!(),
+                        line!(),
+                        column!(),
+                        error
+                    )
+                })
+                .ok();
         }
     }
 }
@@ -845,7 +854,7 @@ fn logline_text(event: &LogEvent) -> TextBundle {
             },
         ),
         TextSection::new(
-            dbg_level.to_string(),
+            format!(" {} ", dbg_level),
             TextStyle {
                 font_size: LOG_LINE_FONT_SIZE,
                 color: dbg_level.into(),
