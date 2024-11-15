@@ -5,7 +5,7 @@ use bevy::a11y::accesskit::{NodeBuilder, Role};
 use bevy::a11y::AccessibilityNode;
 use bevy::color::palettes::css;
 use bevy::log::BoxedLayer;
-use bevy::render::view::visibility::RenderLayers;
+use bevy::text::BreakLineOn;
 use bevy::utils::tracing::level_filters::LevelFilter;
 use bevy::{
     log::tracing_subscriber::{self, Layer},
@@ -17,9 +17,11 @@ use time::format_description::well_known::iso8601;
 use time::OffsetDateTime;
 
 use crate::debug_log_level::DebugLogLevel;
-use crate::utils::{self, CheckboxIconMarker, ChipLeadingTextMarker};
-
-const RENDER_LAYER: usize = 55;
+use crate::log_viewer::{
+    setup_log_viewer_ui, AutoCheckBox, ChipToggle, LevelFilterChip, ListMarker, LogViewerMarker,
+    LogViewerState, TrafficLightButton,
+};
+use crate::utils::{CheckboxIconMarker, ChipLeadingTextMarker};
 
 #[derive(Debug, Event, Clone)]
 struct LogEvent {
@@ -30,17 +32,6 @@ struct LogEvent {
 
 #[derive(Deref, DerefMut)]
 struct LogEventsReceiver(mpsc::Receiver<LogEvent>);
-
-fn transfer_log_events(
-    receiver: Option<NonSend<LogEventsReceiver>>,
-    mut log_events: EventWriter<LogEvent>,
-) {
-    if let Some(receiver) = receiver {
-        // Pop all events from the channel and send them to the event writer.
-        // Use `try_iter()` and not `iter()` to prevent blocking.
-        log_events.send_batch(receiver.try_iter());
-    }
-}
 
 struct CaptureLayer {
     sender: mpsc::Sender<LogEvent>,
@@ -62,15 +53,6 @@ impl<S: Subscriber> Layer<S> for CaptureLayer {
                     message,
                     metadata: event.metadata(),
                     timestamp: OffsetDateTime::now_utc(),
-                })
-                .inspect_err(|error| {
-                    eprintln!(
-                        "{}:{}:{} Couldn't to send log event to bevy_debug_log: {}",
-                        file!(),
-                        line!(),
-                        column!(),
-                        error
-                    )
                 })
                 .ok();
         }
@@ -110,7 +92,6 @@ impl LogViewerPlugin {
 impl Plugin for LogViewerPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<LogEvent>();
-        app.add_systems(Update, transfer_log_events);
 
         app.insert_resource(LogViewerState {
             auto_open_threshold: self.auto_open_threshold,
@@ -147,35 +128,6 @@ pub fn log_capture_layer(app: &mut App) -> Option<BoxedLayer> {
     Some(layer.boxed())
 }
 
-#[derive(Resource)]
-struct LogViewerState {
-    visible: bool,
-    fullscreen: bool,
-    auto_open_threshold: LevelFilter,
-    auto_open_enabled: bool,
-    error_visible: bool,
-    warn_visible: bool,
-    info_visible: bool,
-    debug_visible: bool,
-    trace_visible: bool,
-}
-
-impl Default for LogViewerState {
-    fn default() -> Self {
-        Self {
-            auto_open_threshold: LevelFilter::OFF,
-            visible: false,
-            fullscreen: false,
-            auto_open_enabled: false,
-            error_visible: true,
-            warn_visible: true,
-            info_visible: true,
-            debug_visible: true,
-            trace_visible: true,
-        }
-    }
-}
-
 #[derive(Event, Reflect, Debug, Clone, Copy)]
 pub enum LogViewerVisibility {
     Show,
@@ -197,32 +149,7 @@ pub struct ClearLogs;
 pub struct AutoOpenToggle;
 
 #[derive(Component)]
-struct LogViewerMarker;
-
-#[derive(Component)]
-struct ListMarker;
-
-#[derive(Component)]
 struct LogLineMarker;
-
-#[derive(Component)]
-enum TrafficLightButton {
-    Red,
-    Yellow,
-    Green,
-}
-
-#[derive(Component, Clone, Copy, PartialEq, Debug)]
-enum LevelFilterChip {
-    Error,
-    Warn,
-    Info,
-    Debug,
-    Trace,
-}
-
-#[derive(Event)]
-struct ChipToggle(LevelFilterChip);
 
 #[derive(Component)]
 struct ErrLogLineMarker;
@@ -278,267 +205,6 @@ type WithOnlyTraceLogLine = (
     Without<DebugLogLineMarker>,
     With<TraceLogLineMarker>,
 );
-
-#[derive(Component, Clone)]
-struct AutoCheckBox;
-
-fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewerState>) {
-    commands.spawn((
-        Camera2dBundle {
-            camera: Camera {
-                order: 1,
-                clear_color: ClearColorConfig::None,
-                ..default()
-            },
-            ..default()
-        },
-        RenderLayers::layer(RENDER_LAYER),
-        LogViewerMarker,
-    ));
-
-    let safe_zone_top = if cfg!(target_os = "ios") { 50 } else { 0 };
-
-    commands
-        .spawn((
-            Name::new("log-viewer-ui"),
-            RenderLayers::layer(RENDER_LAYER),
-            LogViewerMarker,
-            NodeBundle {
-                z_index: ZIndex::Global(i32::MAX),
-                style: Style {
-                    display: Display::None,
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(40.0),
-                    padding: UiRect::all(Val::Px(4.)).with_top(Val::Px(safe_zone_top as f32)),
-                    flex_direction: FlexDirection::Column,
-                    justify_content: JustifyContent::Stretch,
-                    position_type: PositionType::Absolute,
-                    overflow: Overflow::clip(),
-                    ..default()
-                },
-                background_color: Color::srgba(0.15, 0.15, 0.15, 0.75).into(),
-                ..default()
-            },
-        ))
-        .with_children(|parent| {
-            // Title Bar
-            parent
-                .spawn((
-                    NodeBundle {
-                        style: Style {
-                            flex_direction: FlexDirection::Row,
-                            justify_content: JustifyContent::SpaceBetween,
-                            ..default()
-                        },
-                        ..default()
-                    },
-                    Name::new("title_bar"),
-                ))
-                .with_children(|parent| {
-                    utils::spawn_chip(
-                        parent,
-                        LevelFilterChip::Error,
-                        DebugLogLevel::ERROR.into(),
-                        "0".into(),
-                        "E".into(),
-                        log_viewer_res.error_visible,
-                        "error_swtich",
-                    );
-
-                    utils::spawn_chip(
-                        parent,
-                        LevelFilterChip::Warn,
-                        DebugLogLevel::WARN.into(),
-                        "0".into(),
-                        "W".into(),
-                        log_viewer_res.warn_visible,
-                        "warn_swtich",
-                    );
-
-                    utils::spawn_chip(
-                        parent,
-                        LevelFilterChip::Info,
-                        DebugLogLevel::INFO.into(),
-                        "0".into(),
-                        "I".into(),
-                        log_viewer_res.info_visible,
-                        "info_swtich",
-                    );
-
-                    utils::spawn_chip(
-                        parent,
-                        LevelFilterChip::Debug,
-                        DebugLogLevel::DEBUG.into(),
-                        "0".into(),
-                        "D".into(),
-                        log_viewer_res.debug_visible,
-                        "debug_swtich",
-                    );
-
-                    utils::spawn_chip(
-                        parent,
-                        LevelFilterChip::Trace,
-                        DebugLogLevel::TRACE.into(),
-                        "0".into(),
-                        "T".into(),
-                        log_viewer_res.trace_visible,
-                        "trace_swtich",
-                    );
-
-                    parent.spawn((
-                        NodeBundle {
-                            style: Style {
-                                align_items: AlignItems::End,
-                                flex_grow: 1.0,
-                                ..default()
-                            },
-                            ..default()
-                        },
-                        Name::new("title_bar_spacer"),
-                    ));
-                    // Show checkbox only when auto-open is enabled
-                    if log_viewer_res.auto_open_threshold != LevelFilter::OFF {
-                        // This cannot fail because LevelFilter cannot be OFF here
-                        let level: DebugLogLevel = log_viewer_res
-                            .auto_open_threshold
-                            .try_into()
-                            .expect("LevelFilter should be convertible to DebugLogLevel");
-                        parent
-                            .spawn((
-                                NodeBundle {
-                                    style: Style {
-                                        align_items: AlignItems::End,
-                                        ..default()
-                                    },
-                                    ..default()
-                                },
-                                Name::new("auto-open"),
-                            ))
-                            .with_children(|parent| {
-                                utils::spawn_checkbox(
-                                    parent,
-                                    AutoCheckBox,
-                                    "auto-open-checkbox",
-                                    log_viewer_res.auto_open_enabled,
-                                    format!("Auto-open on {}", level.title_case()),
-                                );
-                            });
-                    }
-                    parent
-                        .spawn((
-                            NodeBundle {
-                                style: Style {
-                                    padding: UiRect::all(Val::Px(5.)),
-                                    align_items: AlignItems::End,
-                                    ..default()
-                                },
-                                ..default()
-                            },
-                            Name::new("size_btn"),
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((
-                                ButtonBundle {
-                                    background_color: Color::srgb_u8(43, 198, 63).into(),
-                                    border_radius: BorderRadius::all(Val::Px(20.)),
-                                    style: Style {
-                                        width: Val::Px(20.),
-                                        height: Val::Px(20.),
-                                        ..default()
-                                    },
-                                    ..default()
-                                },
-                                TrafficLightButton::Green,
-                            ));
-                        });
-                    parent
-                        .spawn((
-                            NodeBundle {
-                                style: Style {
-                                    padding: UiRect::all(Val::Px(5.)),
-                                    align_items: AlignItems::End,
-                                    ..default()
-                                },
-                                ..default()
-                            },
-                            Name::new("clear_btn"),
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((
-                                ButtonBundle {
-                                    background_color: Color::srgb_u8(255, 188, 46).into(),
-                                    border_radius: BorderRadius::all(Val::Px(20.)),
-                                    style: Style {
-                                        width: Val::Px(20.),
-                                        height: Val::Px(20.),
-                                        ..default()
-                                    },
-                                    ..default()
-                                },
-                                TrafficLightButton::Yellow,
-                            ));
-                        });
-                    parent
-                        .spawn((
-                            NodeBundle {
-                                style: Style {
-                                    padding: UiRect::all(Val::Px(5.)),
-                                    align_items: AlignItems::End,
-                                    ..default()
-                                },
-                                ..default()
-                            },
-                            Name::new("close_logs_btn"),
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((
-                                ButtonBundle {
-                                    background_color: Color::srgb_u8(255, 95, 87).into(),
-                                    border_radius: BorderRadius::all(Val::Px(20.)),
-                                    style: Style {
-                                        width: Val::Px(20.),
-                                        height: Val::Px(20.),
-                                        ..default()
-                                    },
-                                    ..default()
-                                },
-                                TrafficLightButton::Red,
-                            ));
-                        });
-                });
-            // List Container
-            parent
-                .spawn((
-                    NodeBundle {
-                        style: Style {
-                            height: Val::Percent(100.),
-                            overflow: Overflow {
-                                x: OverflowAxis::Visible,
-                                y: OverflowAxis::Clip,
-                            },
-                            ..default()
-                        },
-                        ..default()
-                    },
-                    Name::new("container"),
-                ))
-                .with_children(|children| {
-                    children.spawn((
-                        NodeBundle {
-                            style: Style {
-                                flex_direction: FlexDirection::ColumnReverse,
-                                position_type: PositionType::Absolute,
-                                bottom: Val::Px(0.),
-                                ..default()
-                            },
-                            ..default()
-                        },
-                        Name::new("list"),
-                        ListMarker,
-                    ));
-                });
-        });
-}
 
 fn handle_log_viewer_visibilty(
     trigger: Trigger<LogViewerVisibility>,
@@ -726,7 +392,6 @@ fn handle_level_filter_chip_toggle(
 
 #[allow(clippy::too_many_arguments)]
 fn update_log_ui(
-    mut events: EventReader<LogEvent>,
     mut commands: Commands,
     mut query: Query<Entity, With<ListMarker>>,
     log_viewer_res: Res<LogViewerState>,
@@ -736,6 +401,7 @@ fn update_log_ui(
     info_logline_query: Query<&mut Style, WithOnlyInfoLogLine>,
     debug_logline_query: Query<&mut Style, WithOnlyDebugLogLine>,
     trace_logline_query: Query<&mut Style, WithOnlyTraceLogLine>,
+    logs_rx: Option<NonSend<LogEventsReceiver>>,
 ) {
     // Update the count of log lines for each chip.
     for (mut text, chip) in chip_query.iter_mut() {
@@ -749,86 +415,84 @@ fn update_log_ui(
         text.sections[0].value = count.to_string();
     }
 
-    for e in events.read() {
-        if let Ok(parent) = query.get_single_mut() {
-            let child_entity = commands
-                .spawn((
-                    logline_text(e),
-                    Label,
-                    LogLineMarker,
-                    AccessibilityNode(NodeBuilder::new(Role::ListItem)),
-                ))
-                .id();
+    if let Some(receiver) = logs_rx {
+        for e in receiver.try_iter() {
+            if let Ok(parent) = query.get_single_mut() {
+                let mut logline = logline_text(&e);
+                logline.text.linebreak_behavior = BreakLineOn::AnyCharacter;
+                let child_entity = commands
+                    .spawn((
+                        logline,
+                        Label,
+                        LogLineMarker,
+                        AccessibilityNode(NodeBuilder::new(Role::ListItem)),
+                    ))
+                    .id();
 
-            // Insert the relevant log line marker and set visibility based on the log level.
-            match *e.metadata.level() {
-                tracing::Level::ERROR => commands.entity(child_entity).insert((
-                    ErrLogLineMarker,
-                    Style {
-                        display: if log_viewer_res.error_visible {
-                            Display::Flex
-                        } else {
-                            Display::None
-                        },
-                        ..default()
-                    },
-                )),
-                tracing::Level::WARN => commands.entity(child_entity).insert((
-                    WarnLogLineMarker,
-                    Style {
-                        display: if log_viewer_res.warn_visible {
-                            Display::Flex
-                        } else {
-                            Display::None
-                        },
-                        ..default()
-                    },
-                )),
-                tracing::Level::INFO => commands.entity(child_entity).insert((
-                    InfoLogLineMarker,
-                    Style {
-                        display: if log_viewer_res.info_visible {
-                            Display::Flex
-                        } else {
-                            Display::None
-                        },
-                        ..default()
-                    },
-                )),
-                tracing::Level::DEBUG => commands.entity(child_entity).insert((
-                    DebugLogLineMarker,
-                    Style {
-                        display: if log_viewer_res.debug_visible {
-                            Display::Flex
-                        } else {
-                            Display::None
-                        },
-                        ..default()
-                    },
-                )),
-                tracing::Level::TRACE => commands.entity(child_entity).insert((
-                    TraceLogLineMarker,
-                    Style {
-                        display: if log_viewer_res.trace_visible {
-                            Display::Flex
-                        } else {
-                            Display::None
-                        },
-                        ..default()
-                    },
-                )),
-            };
+                // Insert the relevant log line marker and set visibility based on the log level.
+                match *e.metadata.level() {
+                    tracing::Level::ERROR => add_level_info(
+                        &mut commands,
+                        child_entity,
+                        ErrLogLineMarker,
+                        log_viewer_res.error_visible,
+                    ),
+                    tracing::Level::WARN => add_level_info(
+                        &mut commands,
+                        child_entity,
+                        WarnLogLineMarker,
+                        log_viewer_res.warn_visible,
+                    ),
+                    tracing::Level::INFO => add_level_info(
+                        &mut commands,
+                        child_entity,
+                        InfoLogLineMarker,
+                        log_viewer_res.info_visible,
+                    ),
+                    tracing::Level::DEBUG => add_level_info(
+                        &mut commands,
+                        child_entity,
+                        DebugLogLineMarker,
+                        log_viewer_res.debug_visible,
+                    ),
+                    tracing::Level::TRACE => add_level_info(
+                        &mut commands,
+                        child_entity,
+                        TraceLogLineMarker,
+                        log_viewer_res.trace_visible,
+                    ),
+                };
 
-            commands.entity(parent).insert_children(0, &[child_entity]);
-        }
-        // If the log viewer is not visible, check if the log event should trigger it to open.
-        if log_viewer_res.auto_open_enabled
-            && !log_viewer_res.visible
-            && *e.metadata.level() <= log_viewer_res.auto_open_threshold
-        {
-            commands.trigger(LogViewerVisibility::Show);
+                commands.entity(parent).insert_children(0, &[child_entity]);
+            }
+            // If the log viewer is not visible, check if the log event should trigger it to open.
+            if log_viewer_res.auto_open_enabled
+                && !log_viewer_res.visible
+                && *e.metadata.level() <= log_viewer_res.auto_open_threshold
+            {
+                commands.trigger(LogViewerVisibility::Show);
+            }
         }
     }
+}
+
+fn add_level_info(
+    commands: &mut Commands,
+    child_entity: Entity,
+    level_marker: impl Component,
+    visible: bool,
+) {
+    commands.entity(child_entity).insert((
+        level_marker,
+        Style {
+            display: if visible {
+                Display::Flex
+            } else {
+                Display::None
+            },
+            ..default()
+        },
+    ));
 }
 
 fn logline_text(event: &LogEvent) -> TextBundle {

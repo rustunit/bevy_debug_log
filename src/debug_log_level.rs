@@ -42,8 +42,8 @@ impl From<DebugLogLevel> for Level {
 impl From<DebugLogLevel> for Srgba {
     fn from(log_level: DebugLogLevel) -> Self {
         match log_level.0 {
-            Level::TRACE => css::WHITE.with_alpha(0.5),
-            Level::DEBUG => css::WHITE,
+            Level::TRACE => css::MEDIUM_ORCHID,
+            Level::DEBUG => css::DEEP_SKY_BLUE,
             Level::INFO => css::LIME,
             Level::WARN => css::YELLOW,
             Level::ERROR => css::RED,

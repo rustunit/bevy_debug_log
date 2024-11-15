@@ -44,7 +44,7 @@ commands.trigger(LogViewerVisibility::Toggle);
 - [bevy_ios_notifications](https://github.com/rustunit/bevy_ios_notifications)
 - [bevy_ios_gamecenter](https://github.com/rustunit/bevy_ios_gamecenter)
 - [bevy_web_popups](https://github.com/rustunit/bevy_web_popups)
-- [bevy_libgdx_asset](https://github.com/rustunit/bevy_libgdx_asset)
+- [bevy_libgdx_atlas](https://github.com/rustunit/bevy_libgdx_atlas)
 
 ## Compatible Bevy Versions
 

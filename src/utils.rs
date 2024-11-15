@@ -91,7 +91,7 @@ pub(crate) fn spawn_checkbox<B: Bundle + Clone>(
 }
 
 #[derive(Component)]
-pub(crate) struct ChipMarker;
+struct ChipMarker;
 
 #[derive(Component)]
 pub(crate) struct ChipLeadingTextMarker;

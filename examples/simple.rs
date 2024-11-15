@@ -61,7 +61,7 @@ fn setup(
 
     commands.spawn(
         TextBundle::from_section(
-            "Press space to toggle log window.\nPress 1-3 for logs.",
+            "Press space to toggle log window.\nPress 1-5 for logs.",
             TextStyle {
                 font_size: 18.,
                 ..default()
