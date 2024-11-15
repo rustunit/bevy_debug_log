@@ -19,7 +19,7 @@ App::new().add_plugins((
         custom_layer: bevy_debug_log::log_capture_layer,
     }),
     // register our plugin
-    bevy_debug_log::plugin,
+    bevy_debug_log::LogViewerPlugin::default(),
 ));
 
 
@@ -50,7 +50,7 @@ commands.trigger(LogViewerVisibility::Toggle);
 
 |bevy|bevy_debug_log|
 |-|-|
-|0.14|0.1|
+|0.14|0.1, 0.2, main|
 
 ## License
 
