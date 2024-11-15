@@ -105,10 +105,15 @@ impl Plugin for LogViewerPlugin {
         app.observe(handle_level_filter_chip_toggle);
 
         app.add_systems(Startup, setup_log_viewer_ui);
+
+        // Running update_log_ui in PreUpdate to prevent data races between updating the UI and filtering log lines.
+        // `handle_level_filter_chip_toggle`` can modify the `{level}_visible` fields in `LogViewerState`
+        // while `update_log_ui` is adding new loglines to the viewer in parallel based on older values.
+        app.add_systems(PreUpdate, update_log_ui);
+
         app.add_systems(
             Update,
             (
-                update_log_ui,
                 on_traffic_light_button,
                 on_auto_open_check,
                 on_level_filter_chip,
