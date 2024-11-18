@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added level based log filtering
 
 ### Removed
-* Stopped creating bevy events for incomming logs
+* Stopped creating bevy events for incoming logs
 
 ### Fixed
 * Logviewer will no longer panic if a log event arrives after the receiver was dropped
@@ -24,9 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2024-11-01
 
 ### Added
-* Logviewer now has buttoms for clearing logs and going fullscreen
+* Logviewer now has buttons for clearing logs and going fullscreen
 * Loglines now show timestamps
-* Logviewer can now be configured to open automtically when an event of a certain level is received.
+* Logviewer can now be configured to open automatically when an event of a certain level is received.
 
 ### Changed
 * Replaced the plugin initialization function `bevy_debug_log::plugin()` with `bevy_debug_log::LogViewerPlugin::default()` 
