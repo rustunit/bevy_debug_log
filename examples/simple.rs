@@ -17,9 +17,9 @@ fn main() {
                 ..default()
             })
             .set(LogPlugin {
-                filter: "info".into(),
-                level: bevy::log::Level::INFO,
+                level: bevy::log::Level::TRACE,
                 custom_layer: bevy_debug_log::log_capture_layer,
+                ..default()
             }),
     );
     app.add_plugins(bevy_debug_log::LogViewerPlugin::default());
@@ -34,10 +34,14 @@ fn toggle_log(mut commands: Commands, keyboard: Res<ButtonInput<KeyCode>>) {
 
         info!("toggle log!");
     } else if keyboard.just_pressed(KeyCode::Digit1) {
-        info!("info log");
+        trace!("trace log");
     } else if keyboard.just_pressed(KeyCode::Digit2) {
-        warn!("warn log");
+        debug!("debug log");
     } else if keyboard.just_pressed(KeyCode::Digit3) {
+        info!("info log");
+    } else if keyboard.just_pressed(KeyCode::Digit4) {
+        warn!("warn log");
+    } else if keyboard.just_pressed(KeyCode::Digit5) {
         error!("error log");
     }
 }
@@ -57,7 +61,7 @@ fn setup(
 
     commands.spawn(
         TextBundle::from_section(
-            "Press space to toggle log window.\nPress 1-3 for logs.",
+            "Press space to toggle log window.\nPress 1-5 for logs.",
             TextStyle {
                 font_size: 18.,
                 ..default()

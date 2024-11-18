@@ -19,7 +19,7 @@ App::new().add_plugins((
         custom_layer: bevy_debug_log::log_capture_layer,
     }),
     // register our plugin
-    bevy_debug_log::plugin,
+    bevy_debug_log::LogViewerPlugin::default(),
 ));
 
 
@@ -44,13 +44,13 @@ commands.trigger(LogViewerVisibility::Toggle);
 - [bevy_ios_notifications](https://github.com/rustunit/bevy_ios_notifications)
 - [bevy_ios_gamecenter](https://github.com/rustunit/bevy_ios_gamecenter)
 - [bevy_web_popups](https://github.com/rustunit/bevy_web_popups)
-- [bevy_libgdx_asset](https://github.com/rustunit/bevy_libgdx_asset)
+- [bevy_libgdx_atlas](https://github.com/rustunit/bevy_libgdx_atlas)
 
 ## Compatible Bevy Versions
 
 |bevy|bevy_debug_log|
 |-|-|
-|0.14|0.1|
+|0.14|0.1, 0.2, main|
 
 ## License
 
