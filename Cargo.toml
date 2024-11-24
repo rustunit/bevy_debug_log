@@ -1,6 +1,6 @@
 [package]
 name = "bevy_debug_log"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 authors = ["Rustunit <mail@rustunit.com>"]
 description = "Allows viewing tracing debug log output inside the bevy app using vanilla bevy_ui."
