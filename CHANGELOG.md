@@ -9,11 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.0] - 2024-12-24
 
-### Added
-* Added level based log filtering
-
-### Removed
-* Stopped creating bevy events for incoming logs
+### Changed
+* Added level based log filtering (tabs for warn, info, error ..)
+* Show amount of logs per level
 
 ### Fixed
 * Logviewer will no longer panic if a log event arrives after the receiver was dropped
