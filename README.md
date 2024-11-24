@@ -3,6 +3,10 @@
 [![Following released Bevy versions](https://img.shields.io/badge/Bevy%20tracking-released%20version-lightblue)](https://bevyengine.org/learn/quick-start/plugin-development/#main-branch-tracking)
 [![crates.io](https://img.shields.io/crates/v/bevy_debug_log)](https://crates.io/crates/bevy_debug_log)
 [![docs.rs](https://docs.rs/bevy_debug_log/badge.svg)](https://docs.rs/bevy_debug_log)
+[![discord][sh_discord]][lk_discord]
+
+[sh_discord]: https://img.shields.io/discord/1176858176897953872?label=discord&color=5561E6
+[lk_discord]: https://discord.gg/rQNeEnMhus
 
 Allows viewing the tracing debug log output inside the app - particularly on platforms like mobile where you have no easy way to follow the terminal output.
 
