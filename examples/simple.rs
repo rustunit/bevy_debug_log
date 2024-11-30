@@ -1,7 +1,4 @@
-use bevy::{
-    color::palettes::basic::PURPLE, log::LogPlugin, prelude::*, sprite::MaterialMesh2dBundle,
-    window::WindowResolution,
-};
+use bevy::{color::palettes::basic::PURPLE, log::LogPlugin, prelude::*, window::WindowResolution};
 use bevy_debug_log::LogViewerVisibility;
 
 fn main() {
@@ -18,6 +15,7 @@ fn main() {
             })
             .set(LogPlugin {
                 level: bevy::log::Level::TRACE,
+                filter: "INFO,simple=TRACE".into(),
                 custom_layer: bevy_debug_log::log_capture_layer,
                 ..default()
             }),
@@ -51,27 +49,21 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    commands.spawn(Camera2dBundle::default());
-    commands.spawn(MaterialMesh2dBundle {
-        mesh: meshes.add(Rectangle::default()).into(),
-        transform: Transform::default().with_scale(Vec3::splat(128.)),
-        material: materials.add(Color::from(PURPLE)),
-        ..default()
-    });
+    commands.spawn(Camera2d);
+    commands.spawn((
+        Transform::default().with_scale(Vec3::splat(128.)),
+        Mesh2d(meshes.add(Rectangle::default()).into()),
+        MeshMaterial2d(materials.add(Color::from(PURPLE))),
+    ));
 
-    commands.spawn(
-        TextBundle::from_section(
-            "Press space to toggle log window.\nPress 1-5 for logs.",
-            TextStyle {
-                font_size: 18.,
-                ..default()
-            },
-        )
-        .with_style(Style {
+    commands.spawn((
+        Text::new("Press space to toggle log window.\nPress 1-5 for logs."),
+        TextFont::from_font_size(18.),
+        Node {
             position_type: PositionType::Absolute,
             bottom: Val::Px(12.0),
             left: Val::Px(12.0),
             ..default()
-        }),
-    );
+        },
+    ));
 }

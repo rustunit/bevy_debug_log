@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [0.4.0] - 2024-12-30
+
+### Changed
+* Upgrade to Bevy 0.15
+
 ## [0.3.0] - 2024-12-24
 
 ### Changed
@@ -29,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Logviewer can now be configured to open automatically when an event of a certain level is received.
 
 ### Changed
-* Replaced the plugin initialization function `bevy_debug_log::plugin()` with `bevy_debug_log::LogViewerPlugin::default()` 
+* Replaced the plugin initialization function `bevy_debug_log::plugin()` with `bevy_debug_log::LogViewerPlugin::default()`
 
 ## [0.1.1] - 2024-10-10
 

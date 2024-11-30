@@ -63,12 +63,10 @@ pub(crate) struct ChipToggle(pub(crate) LevelFilterChip);
 
 pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewerState>) {
     commands.spawn((
-        Camera2dBundle {
-            camera: Camera {
-                order: 1,
-                clear_color: ClearColorConfig::None,
-                ..default()
-            },
+        Camera2d,
+        Camera {
+            order: 1,
+            clear_color: ClearColorConfig::None,
             ..default()
         },
         RenderLayers::layer(RENDER_LAYER),
@@ -82,33 +80,27 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
             Name::new("log-viewer-ui"),
             RenderLayers::layer(RENDER_LAYER),
             LogViewerMarker,
-            NodeBundle {
-                z_index: ZIndex::Global(i32::MAX),
-                style: Style {
-                    display: Display::None,
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(40.0),
-                    padding: UiRect::all(Val::Px(4.)).with_top(Val::Px(safe_zone_top as f32)),
-                    flex_direction: FlexDirection::Column,
-                    justify_content: JustifyContent::Stretch,
-                    position_type: PositionType::Absolute,
-                    overflow: Overflow::clip(),
-                    ..default()
-                },
-                background_color: Color::srgba(0.15, 0.15, 0.15, 0.75).into(),
+            GlobalZIndex(i32::MAX),
+            Node {
+                display: Display::None,
+                width: Val::Percent(100.0),
+                height: Val::Percent(40.0),
+                padding: UiRect::all(Val::Px(4.)).with_top(Val::Px(safe_zone_top as f32)),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Stretch,
+                position_type: PositionType::Absolute,
+                overflow: Overflow::clip(),
                 ..default()
             },
+            BackgroundColor(Color::srgba(0.15, 0.15, 0.15, 0.75)),
         ))
         .with_children(|parent| {
             // Title Bar
             parent
                 .spawn((
-                    NodeBundle {
-                        style: Style {
-                            flex_direction: FlexDirection::Row,
-                            justify_content: JustifyContent::SpaceBetween,
-                            ..default()
-                        },
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        justify_content: JustifyContent::SpaceBetween,
                         ..default()
                     },
                     Name::new("title_bar"),
@@ -121,7 +113,7 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                         "0".into(),
                         "E".into(),
                         log_viewer_res.error_visible,
-                        "error_swtich",
+                        "error_switch",
                     );
 
                     utils::spawn_chip(
@@ -131,7 +123,7 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                         "0".into(),
                         "W".into(),
                         log_viewer_res.warn_visible,
-                        "warn_swtich",
+                        "warn_switch",
                     );
 
                     utils::spawn_chip(
@@ -141,7 +133,7 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                         "0".into(),
                         "I".into(),
                         log_viewer_res.info_visible,
-                        "info_swtich",
+                        "info_switch",
                     );
 
                     utils::spawn_chip(
@@ -151,7 +143,7 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                         "0".into(),
                         "D".into(),
                         log_viewer_res.debug_visible,
-                        "debug_swtich",
+                        "debug_switch",
                     );
 
                     utils::spawn_chip(
@@ -161,16 +153,13 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                         "0".into(),
                         "T".into(),
                         log_viewer_res.trace_visible,
-                        "trace_swtich",
+                        "trace_switch",
                     );
 
                     parent.spawn((
-                        NodeBundle {
-                            style: Style {
-                                align_items: AlignItems::End,
-                                flex_grow: 1.0,
-                                ..default()
-                            },
+                        Node {
+                            align_items: AlignItems::End,
+                            flex_grow: 1.0,
                             ..default()
                         },
                         Name::new("title_bar_spacer"),
@@ -184,11 +173,8 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                             .expect("LevelFilter should be convertible to DebugLogLevel");
                         parent
                             .spawn((
-                                NodeBundle {
-                                    style: Style {
-                                        align_items: AlignItems::End,
-                                        ..default()
-                                    },
+                                Node {
+                                    align_items: AlignItems::End,
                                     ..default()
                                 },
                                 Name::new("auto-open"),
@@ -205,97 +191,80 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                     }
                     parent
                         .spawn((
-                            NodeBundle {
-                                style: Style {
-                                    padding: UiRect::all(Val::Px(5.)),
-                                    align_items: AlignItems::End,
-                                    ..default()
-                                },
+                            Node {
+                                padding: UiRect::all(Val::Px(5.)),
+                                align_items: AlignItems::End,
                                 ..default()
                             },
                             Name::new("size_btn"),
                         ))
                         .with_children(|parent| {
                             parent.spawn((
-                                ButtonBundle {
-                                    background_color: Color::srgb_u8(43, 198, 63).into(),
-                                    border_radius: BorderRadius::all(Val::Px(20.)),
-                                    style: Style {
-                                        width: Val::Px(20.),
-                                        height: Val::Px(20.),
-                                        ..default()
-                                    },
+                                Button,
+                                Node {
+                                    width: Val::Px(20.),
+                                    height: Val::Px(20.),
                                     ..default()
                                 },
+                                BorderRadius::all(Val::Px(20.)),
+                                BackgroundColor(Color::srgb_u8(43, 198, 63)),
                                 TrafficLightButton::Green,
                             ));
                         });
                     parent
                         .spawn((
-                            NodeBundle {
-                                style: Style {
-                                    padding: UiRect::all(Val::Px(5.)),
-                                    align_items: AlignItems::End,
-                                    ..default()
-                                },
+                            Node {
+                                padding: UiRect::all(Val::Px(5.)),
+                                align_items: AlignItems::End,
                                 ..default()
                             },
                             Name::new("clear_btn"),
                         ))
                         .with_children(|parent| {
                             parent.spawn((
-                                ButtonBundle {
-                                    background_color: Color::srgb_u8(255, 188, 46).into(),
-                                    border_radius: BorderRadius::all(Val::Px(20.)),
-                                    style: Style {
-                                        width: Val::Px(20.),
-                                        height: Val::Px(20.),
-                                        ..default()
-                                    },
+                                Button,
+                                Node {
+                                    width: Val::Px(20.),
+                                    height: Val::Px(20.),
                                     ..default()
                                 },
+                                BackgroundColor(Color::srgb_u8(255, 188, 46)),
+                                BorderRadius::all(Val::Px(20.)),
                                 TrafficLightButton::Yellow,
                             ));
                         });
                     parent
                         .spawn((
-                            NodeBundle {
-                                style: Style {
-                                    padding: UiRect::all(Val::Px(5.)),
-                                    align_items: AlignItems::End,
-                                    ..default()
-                                },
+                            Node {
+                                padding: UiRect::all(Val::Px(5.)),
+                                align_items: AlignItems::End,
                                 ..default()
                             },
                             Name::new("close_logs_btn"),
                         ))
                         .with_children(|parent| {
                             parent.spawn((
-                                ButtonBundle {
-                                    background_color: Color::srgb_u8(255, 95, 87).into(),
-                                    border_radius: BorderRadius::all(Val::Px(20.)),
-                                    style: Style {
-                                        width: Val::Px(20.),
-                                        height: Val::Px(20.),
-                                        ..default()
-                                    },
+                                Button,
+                                Node {
+                                    width: Val::Px(20.),
+                                    height: Val::Px(20.),
                                     ..default()
                                 },
+                                BorderRadius::all(Val::Px(20.)),
+                                BackgroundColor(Color::srgb_u8(255, 95, 87)),
                                 TrafficLightButton::Red,
                             ));
                         });
                 });
+
             // List Container
             parent
                 .spawn((
-                    NodeBundle {
-                        style: Style {
-                            height: Val::Percent(100.),
-                            overflow: Overflow {
-                                x: OverflowAxis::Visible,
-                                y: OverflowAxis::Clip,
-                            },
-                            ..default()
+                    Node {
+                        height: Val::Percent(100.),
+                        overflow: Overflow {
+                            x: OverflowAxis::Visible,
+                            y: OverflowAxis::Clip,
                         },
                         ..default()
                     },
@@ -303,13 +272,10 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                 ))
                 .with_children(|children| {
                     children.spawn((
-                        NodeBundle {
-                            style: Style {
-                                flex_direction: FlexDirection::ColumnReverse,
-                                position_type: PositionType::Absolute,
-                                bottom: Val::Px(0.),
-                                ..default()
-                            },
+                        Node {
+                            flex_direction: FlexDirection::Column,
+                            position_type: PositionType::Absolute,
+                            bottom: Val::Px(0.),
                             ..default()
                         },
                         Name::new("list"),

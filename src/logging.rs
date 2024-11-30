@@ -1,27 +1,22 @@
-use std::num::NonZero;
-use std::sync::mpsc;
-
-use bevy::a11y::accesskit::{NodeBuilder, Role};
-use bevy::a11y::AccessibilityNode;
-use bevy::color::palettes::css;
-use bevy::log::BoxedLayer;
-use bevy::text::BreakLineOn;
-use bevy::utils::tracing::level_filters::LevelFilter;
+use crate::{
+    debug_log_level::DebugLogLevel,
+    log_viewer::{
+        setup_log_viewer_ui, AutoCheckBox, ChipToggle, LevelFilterChip, ListMarker,
+        LogViewerMarker, LogViewerState, TrafficLightButton,
+    },
+    utils::{CheckboxIconMarker, ChipLeadingTextMarker},
+};
 use bevy::{
-    log::tracing_subscriber::{self, Layer},
+    color::palettes::css,
+    log::{
+        tracing_subscriber::{self, Layer},
+        BoxedLayer,
+    },
     prelude::*,
-    utils::tracing,
-    utils::tracing::Subscriber,
+    utils::tracing::{self, level_filters::LevelFilter, Subscriber},
 };
-use time::format_description::well_known::iso8601;
-use time::OffsetDateTime;
-
-use crate::debug_log_level::DebugLogLevel;
-use crate::log_viewer::{
-    setup_log_viewer_ui, AutoCheckBox, ChipToggle, LevelFilterChip, ListMarker, LogViewerMarker,
-    LogViewerState, TrafficLightButton,
-};
-use crate::utils::{CheckboxIconMarker, ChipLeadingTextMarker};
+use std::{num::NonZero, sync::mpsc};
+use time::{format_description::well_known::iso8601, OffsetDateTime};
 
 #[derive(Debug, Event, Clone)]
 struct LogEvent {
@@ -98,18 +93,18 @@ impl Plugin for LogViewerPlugin {
             auto_open_enabled: self.auto_open_threshold != LevelFilter::OFF,
             ..default()
         });
-        app.observe(handle_log_viewer_visibilty);
-        app.observe(handle_log_viewer_fullscreen);
-        app.observe(handle_log_viewer_clear);
-        app.observe(handle_auto_open_check);
-        app.observe(handle_level_filter_chip_toggle);
+        app.add_observer(handle_log_viewer_visibilty);
+        app.add_observer(handle_log_viewer_fullscreen);
+        app.add_observer(handle_log_viewer_clear);
+        app.add_observer(handle_auto_open_check);
+        app.add_observer(handle_level_filter_chip_toggle);
 
         app.add_systems(Startup, setup_log_viewer_ui);
 
         // Running update_log_ui in PreUpdate to prevent data races between updating the UI and filtering log lines.
         // `handle_level_filter_chip_toggle`` can modify the `{level}_visible` fields in `LogViewerState`
         // while `update_log_ui` is adding new loglines to the viewer in parallel based on older values.
-        app.add_systems(PreUpdate, update_log_ui);
+        app.add_systems(PreUpdate, (update_log_ui, update_log_counts));
 
         app.add_systems(
             Update,
@@ -213,7 +208,7 @@ type WithOnlyTraceLogLine = (
 
 fn handle_log_viewer_visibilty(
     trigger: Trigger<LogViewerVisibility>,
-    mut log_viewer_query: Query<&mut Style, With<LogViewerMarker>>,
+    mut log_viewer_query: Query<&mut Node, With<LogViewerMarker>>,
     mut log_viewer_res: ResMut<LogViewerState>,
 ) {
     let visible = match trigger.event() {
@@ -248,7 +243,7 @@ fn handle_log_viewer_clear(
 
 fn handle_log_viewer_fullscreen(
     trigger: Trigger<LogViewerSize>,
-    mut log_viewer_query: Query<&mut Style, With<LogViewerMarker>>,
+    mut log_viewer_query: Query<&mut Node, With<LogViewerMarker>>,
     mut log_viewer_res: ResMut<LogViewerState>,
 ) {
     match trigger.event() {
@@ -284,7 +279,7 @@ fn handle_log_viewer_fullscreen(
 fn handle_auto_open_check(
     _trigger: Trigger<AutoOpenToggle>,
     mut log_viewer_res: ResMut<LogViewerState>,
-    mut checkbox_query: Query<&mut Style, With<CheckboxIconMarker>>,
+    mut checkbox_query: Query<&mut Node, With<CheckboxIconMarker>>,
 ) {
     log_viewer_res.auto_open_enabled = !log_viewer_res.auto_open_enabled;
 
@@ -305,11 +300,11 @@ fn handle_level_filter_chip_toggle(
         With<LevelFilterChip>,
     >,
     mut log_viewer_res: ResMut<LogViewerState>,
-    mut err_logline_query: Query<&mut Style, WithOnlyErrLogLine>,
-    mut warn_logline_query: Query<&mut Style, WithOnlyWarnLogLine>,
-    mut info_logline_query: Query<&mut Style, WithOnlyInfoLogLine>,
-    mut debug_logline_query: Query<&mut Style, WithOnlyDebugLogLine>,
-    mut trace_logline_query: Query<&mut Style, WithOnlyTraceLogLine>,
+    mut err_logline_query: Query<&mut Node, WithOnlyErrLogLine>,
+    mut warn_logline_query: Query<&mut Node, WithOnlyWarnLogLine>,
+    mut info_logline_query: Query<&mut Node, WithOnlyInfoLogLine>,
+    mut debug_logline_query: Query<&mut Node, WithOnlyDebugLogLine>,
+    mut trace_logline_query: Query<&mut Node, WithOnlyTraceLogLine>,
 ) {
     for (mut bg_color, mut border_color, chip) in chip_query.iter_mut() {
         if trigger.event().0 == *chip {
@@ -395,21 +390,18 @@ fn handle_level_filter_chip_toggle(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn update_log_ui(
-    mut commands: Commands,
-    mut query: Query<Entity, With<ListMarker>>,
-    log_viewer_res: Res<LogViewerState>,
-    mut chip_query: Query<(&mut Text, &LevelFilterChip), With<ChipLeadingTextMarker>>,
-    err_logline_query: Query<&mut Style, WithOnlyErrLogLine>,
-    warn_logline_query: Query<&mut Style, WithOnlyWarnLogLine>,
-    info_logline_query: Query<&mut Style, WithOnlyInfoLogLine>,
-    debug_logline_query: Query<&mut Style, WithOnlyDebugLogLine>,
-    trace_logline_query: Query<&mut Style, WithOnlyTraceLogLine>,
-    logs_rx: Option<NonSend<LogEventsReceiver>>,
+#[allow(clippy::type_complexity)]
+fn update_log_counts(
+    chip_query: Query<(Entity, &LevelFilterChip), (With<ChipLeadingTextMarker>, With<Text>)>,
+    err_logline_query: Query<&mut Node, WithOnlyErrLogLine>,
+    warn_logline_query: Query<&mut Node, WithOnlyWarnLogLine>,
+    info_logline_query: Query<&mut Node, WithOnlyInfoLogLine>,
+    debug_logline_query: Query<&mut Node, WithOnlyDebugLogLine>,
+    trace_logline_query: Query<&mut Node, WithOnlyTraceLogLine>,
+    mut text_writer: TextUiWriter,
 ) {
     // Update the count of log lines for each chip.
-    for (mut text, chip) in chip_query.iter_mut() {
+    for (e, chip) in chip_query.iter() {
         let count = match *chip {
             LevelFilterChip::Error => err_logline_query.iter().count(),
             LevelFilterChip::Warn => warn_logline_query.iter().count(),
@@ -417,58 +409,54 @@ fn update_log_ui(
             LevelFilterChip::Debug => debug_logline_query.iter().count(),
             LevelFilterChip::Trace => trace_logline_query.iter().count(),
         };
-        text.sections[0].value = count.to_string();
+        *text_writer.text(e, 0) = count.to_string();
     }
+}
 
+fn update_log_ui(
+    mut commands: Commands,
+    mut query: Query<Entity, With<ListMarker>>,
+    log_viewer_res: Res<LogViewerState>,
+    logs_rx: Option<NonSend<LogEventsReceiver>>,
+) {
     if let Some(receiver) = logs_rx {
         for e in receiver.try_iter() {
             if let Ok(parent) = query.get_single_mut() {
-                let mut logline = logline_text(&e);
-                logline.text.linebreak_behavior = BreakLineOn::AnyCharacter;
-                let child_entity = commands
-                    .spawn((
-                        logline,
-                        Label,
-                        LogLineMarker,
-                        AccessibilityNode(NodeBuilder::new(Role::ListItem)),
-                    ))
-                    .id();
+                let child = spawn_logline(&mut commands, parent, &e);
 
                 // Insert the relevant log line marker and set visibility based on the log level.
                 match *e.metadata.level() {
                     tracing::Level::ERROR => add_level_info(
                         &mut commands,
-                        child_entity,
+                        child,
                         ErrLogLineMarker,
                         log_viewer_res.error_visible,
                     ),
                     tracing::Level::WARN => add_level_info(
                         &mut commands,
-                        child_entity,
+                        child,
                         WarnLogLineMarker,
                         log_viewer_res.warn_visible,
                     ),
                     tracing::Level::INFO => add_level_info(
                         &mut commands,
-                        child_entity,
+                        child,
                         InfoLogLineMarker,
                         log_viewer_res.info_visible,
                     ),
                     tracing::Level::DEBUG => add_level_info(
                         &mut commands,
-                        child_entity,
+                        child,
                         DebugLogLineMarker,
                         log_viewer_res.debug_visible,
                     ),
                     tracing::Level::TRACE => add_level_info(
                         &mut commands,
-                        child_entity,
+                        child,
                         TraceLogLineMarker,
                         log_viewer_res.trace_visible,
                     ),
                 };
-
-                commands.entity(parent).insert_children(0, &[child_entity]);
             }
             // If the log viewer is not visible, check if the log event should trigger it to open.
             if log_viewer_res.auto_open_enabled
@@ -489,7 +477,7 @@ fn add_level_info(
 ) {
     commands.entity(child_entity).insert((
         level_marker,
-        Style {
+        Node {
             display: if visible {
                 Display::Flex
             } else {
@@ -500,53 +488,44 @@ fn add_level_info(
     ));
 }
 
-fn logline_text(event: &LogEvent) -> TextBundle {
-    // A log line is made up of three sections: level, target, and message laid out as
-    // LEVEL target: Message
-    // Example:
-    // INFO bevy_window::system: No windows are open, exiting
-    // lvl^ ^^     target     ^^ ^^       message          ^^
-
+fn spawn_logline(commands: &mut Commands, parent: Entity, event: &LogEvent) -> Entity {
     let dbg_level = DebugLogLevel::from(*event.metadata.level());
     const LOG_LINE_FONT_SIZE: f32 = 8.;
 
-    TextBundle::from_sections([
-        TextSection::new(
-            event
-                .timestamp
-                .format(&iso8601::Iso8601::<{ iso8601_with_two_digit_secs() }> {})
-                .unwrap_or("timestamp error".to_string()),
-            TextStyle {
-                font_size: LOG_LINE_FONT_SIZE,
-                color: css::WHITE.with_alpha(0.5).into(),
-                ..default()
-            },
-        ),
-        TextSection::new(
-            format!(" {} ", dbg_level),
-            TextStyle {
-                font_size: LOG_LINE_FONT_SIZE,
-                color: dbg_level.into(),
-                ..default()
-            },
-        ),
-        TextSection::new(
-            format!("{}: ", event.metadata.target()),
-            TextStyle {
-                font_size: LOG_LINE_FONT_SIZE,
-                color: css::WHITE.with_alpha(0.5).into(),
-                ..default()
-            },
-        ),
-        TextSection::new(
-            event.message.clone(),
-            TextStyle {
-                font_size: LOG_LINE_FONT_SIZE,
-                color: css::WHITE.into(),
-                ..default()
-            },
-        ),
-    ])
+    commands
+        .spawn((
+            TextLayout::default().with_linebreak(LineBreak::AnyCharacter),
+            Text::default(),
+            // Label,
+            LogLineMarker,
+        ))
+        .with_child((
+            TextSpan::new(
+                event
+                    .timestamp
+                    .format(&iso8601::Iso8601::<{ iso8601_with_two_digit_secs() }> {})
+                    .unwrap_or("timestamp error".to_string()),
+            ),
+            TextFont::from_font_size(LOG_LINE_FONT_SIZE),
+            TextColor(css::WHITE.with_alpha(0.5).into()),
+        ))
+        .with_child((
+            TextSpan::new(format!(" {} ", dbg_level)),
+            TextFont::from_font_size(LOG_LINE_FONT_SIZE),
+            TextColor(dbg_level.into()),
+        ))
+        .with_child((
+            TextSpan::new(format!("{}: ", event.metadata.target())),
+            TextFont::from_font_size(LOG_LINE_FONT_SIZE),
+            TextColor(css::WHITE.with_alpha(0.5).into()),
+        ))
+        .with_child((
+            TextSpan::new(event.message.clone()),
+            TextFont::from_font_size(LOG_LINE_FONT_SIZE),
+            TextColor(css::WHITE.into()),
+        ))
+        .set_parent(parent)
+        .id()
 }
 
 fn on_traffic_light_button(
