@@ -104,7 +104,7 @@ impl Plugin for LogViewerPlugin {
         // Running update_log_ui in PreUpdate to prevent data races between updating the UI and filtering log lines.
         // `handle_level_filter_chip_toggle`` can modify the `{level}_visible` fields in `LogViewerState`
         // while `update_log_ui` is adding new loglines to the viewer in parallel based on older values.
-        app.add_systems(PreUpdate, (update_log_ui, update_log_counts));
+        app.add_systems(PreUpdate, (receive_logs, update_log_counts));
 
         app.add_systems(
             Update,
@@ -232,12 +232,11 @@ fn handle_log_viewer_visibilty(
 
 fn handle_log_viewer_clear(
     _trigger: Trigger<ClearLogs>,
-    mut log_viewer_query: Query<(Entity, &Parent), With<LogLineMarker>>,
+    logs: Query<Entity, With<LogLineMarker>>,
     mut commands: Commands,
 ) {
-    for (entity, parent) in log_viewer_query.iter_mut() {
-        commands.entity(parent.get()).remove_children(&[entity]);
-        commands.entity(entity).despawn_recursive();
+    for e in logs.iter() {
+        commands.entity(e).despawn_recursive();
     }
 }
 
@@ -413,7 +412,7 @@ fn update_log_counts(
     }
 }
 
-fn update_log_ui(
+fn receive_logs(
     mut commands: Commands,
     mut query: Query<Entity, With<ListMarker>>,
     log_viewer_res: Res<LogViewerState>,
