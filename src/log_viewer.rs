@@ -2,7 +2,7 @@ use bevy::{prelude::*, render::view::RenderLayers, utils::tracing::level_filters
 
 use crate::{debug_log_level::DebugLogLevel, utils};
 
-const RENDER_LAYER: usize = 55;
+pub const RENDER_LAYER: usize = 55;
 
 #[derive(Component)]
 pub(crate) struct LogViewerMarker;
@@ -62,17 +62,6 @@ pub(crate) enum LevelFilterChip {
 pub(crate) struct ChipToggle(pub(crate) LevelFilterChip);
 
 pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewerState>) {
-    commands.spawn((
-        Camera2d,
-        Camera {
-            order: 1,
-            clear_color: ClearColorConfig::None,
-            ..default()
-        },
-        RenderLayers::layer(RENDER_LAYER),
-        LogViewerMarker,
-    ));
-
     let safe_zone_top = if cfg!(target_os = "ios") { 50 } else { 0 };
 
     commands

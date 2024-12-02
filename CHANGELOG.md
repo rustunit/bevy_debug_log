@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [0.4.1] - 2024-12-02
+
+### Fixed
+* configure `Msaa` setting for camera we attach for debug_log - workaround for [bevy 0.15 multi camera msaa panic](https://github.com/bevyengine/bevy/issues/16590)
+
 ## [0.4.0] - 2024-11-30
 
 ### Changed

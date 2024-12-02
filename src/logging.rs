@@ -2,7 +2,7 @@ use crate::{
     debug_log_level::DebugLogLevel,
     log_viewer::{
         setup_log_viewer_ui, AutoCheckBox, ChipToggle, LevelFilterChip, ListMarker,
-        LogViewerMarker, LogViewerState, TrafficLightButton,
+        LogViewerMarker, LogViewerState, TrafficLightButton, RENDER_LAYER,
     },
     utils::{CheckboxIconMarker, ChipLeadingTextMarker},
 };
@@ -13,6 +13,7 @@ use bevy::{
         BoxedLayer,
     },
     prelude::*,
+    render::view::RenderLayers,
     utils::tracing::{self, level_filters::LevelFilter, Subscriber},
 };
 use std::{num::NonZero, sync::mpsc};
@@ -67,12 +68,14 @@ impl tracing::field::Visit for CaptureLayerVisitor<'_> {
 
 pub struct LogViewerPlugin {
     auto_open_threshold: LevelFilter,
+    msaa: Msaa,
 }
 
 impl Default for LogViewerPlugin {
     fn default() -> Self {
         Self {
             auto_open_threshold: LevelFilter::ERROR,
+            msaa: Msaa::Off,
         }
     }
 }
@@ -80,6 +83,10 @@ impl Default for LogViewerPlugin {
 impl LogViewerPlugin {
     pub fn auto_open_threshold(mut self, level_filter: LevelFilter) -> Self {
         self.auto_open_threshold = level_filter;
+        self
+    }
+    pub fn msaa(mut self, msaa: Msaa) -> Self {
+        self.msaa = msaa;
         self
     }
 }
@@ -100,6 +107,22 @@ impl Plugin for LogViewerPlugin {
         app.add_observer(handle_level_filter_chip_toggle);
 
         app.add_systems(Startup, setup_log_viewer_ui);
+
+        // TODO: remove once https://github.com/bevyengine/bevy/issues/16590 is fixed
+        let msaa = self.msaa;
+        app.add_systems(Startup, move |mut commands: Commands| {
+            commands.spawn((
+                Camera2d,
+                Camera {
+                    order: 1,
+                    clear_color: ClearColorConfig::None,
+                    ..default()
+                },
+                RenderLayers::layer(RENDER_LAYER),
+                LogViewerMarker,
+                msaa,
+            ));
+        });
 
         // Running update_log_ui in PreUpdate to prevent data races between updating the UI and filtering log lines.
         // `handle_level_filter_chip_toggle`` can modify the `{level}_visible` fields in `LogViewerState`
