@@ -7,12 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## [0.4.0] - 2024-12-30
+## [0.4.0] - 2024-11-30
 
 ### Changed
 * Upgrade to Bevy 0.15
 
-## [0.3.0] - 2024-12-24
+## [0.3.0] - 2024-11-24
 
 ### Changed
 * Added level based log filtering (tabs for warn, info, error ..)
