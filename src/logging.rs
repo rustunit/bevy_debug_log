@@ -525,7 +525,15 @@ fn spawn_logline(commands: &mut Commands, parent: Entity, event: &LogEvent) -> E
             TextSpan::new(
                 event
                     .timestamp
-                    .format(&iso8601::Iso8601::<{ iso8601_with_two_digit_secs() }> {})
+                    .format(&iso8601::Iso8601::<
+                        {
+                            iso8601::Config::DEFAULT
+                                .set_time_precision(iso8601::TimePrecision::Second {
+                                    decimal_digits: Some(NonZero::new(2).unwrap()),
+                                })
+                                .encode()
+                        },
+                    > {})
                     .unwrap_or("timestamp error".to_string()),
             ),
             TextFont::from_font_size(LOG_LINE_FONT_SIZE),
@@ -585,19 +593,4 @@ fn on_level_filter_chip(
             commands.trigger(ChipToggle(*level));
         }
     }
-}
-
-/// ISO 8601 Config with two decimal digits for seconds.
-const fn iso8601_with_two_digit_secs() -> u128 {
-    // This is a hack to get around .unwrap() not being stable as a const fn
-    const TWO: NonZero<u8> = match NonZero::new(2) {
-        Some(two) => two,
-        None => unreachable!(),
-    };
-
-    iso8601::Config::DEFAULT
-        .set_time_precision(iso8601::TimePrecision::Second {
-            decimal_digits: Some(TWO),
-        })
-        .encode()
 }
