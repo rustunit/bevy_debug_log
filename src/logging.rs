@@ -75,7 +75,7 @@ impl Default for LogViewerPlugin {
     fn default() -> Self {
         Self {
             auto_open_threshold: LevelFilter::ERROR,
-            msaa: Msaa::Off,
+            msaa: Msaa::default(),
         }
     }
 }

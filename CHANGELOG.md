@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [0.4.2] - 2024-12-14
+
+### Changed
+* use `Msaa::default()` as default to fix example
+
 ## [0.4.1] - 2024-12-02
 
 ### Fixed

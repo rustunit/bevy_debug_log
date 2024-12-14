@@ -20,3 +20,6 @@ doc:
 
 format:
     cargo fmt --check
+
+example:
+    cargo r --example simple
