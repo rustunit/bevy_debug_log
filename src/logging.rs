@@ -1,17 +1,20 @@
 use crate::{
     debug_log_level::DebugLogLevel,
     log_viewer::{
-        setup_log_viewer_ui, AutoCheckBox, ChipToggle, LevelFilterChip, ListMarker,
-        LogViewerMarker, LogViewerState, TrafficLightButton, RENDER_LAYER,
+        setup_log_viewer_ui, AutoCheckBox, ChipToggle, GoDownBtnMarker, LevelFilterChip,
+        ListContainerMarker, ListMarker, LogViewerMarker, LogViewerState, ScrollState,
+        TrafficLightButton, RENDER_LAYER,
     },
     utils::{CheckboxIconMarker, ChipLeadingTextMarker},
 };
 use bevy::{
     color::palettes::css,
+    input::mouse::{MouseScrollUnit, MouseWheel},
     log::{
         tracing_subscriber::{self, Layer},
         BoxedLayer,
     },
+    picking::focus::HoverMap,
     prelude::*,
     render::view::RenderLayers,
     utils::tracing::{self, level_filters::LevelFilter, Subscriber},
@@ -19,12 +22,17 @@ use bevy::{
 use std::{num::NonZero, sync::mpsc};
 use time::{format_description::well_known::iso8601, OffsetDateTime};
 
+const LOG_LINE_FONT_SIZE: f32 = 8.;
+
 #[derive(Debug, Event, Clone)]
 struct LogEvent {
     message: String,
     metadata: &'static tracing::Metadata<'static>,
     timestamp: OffsetDateTime,
 }
+
+#[derive(Debug, Event, Clone)]
+struct ScrollToBottom;
 
 #[derive(Deref, DerefMut)]
 struct LogEventsReceiver(mpsc::Receiver<LogEvent>);
@@ -105,6 +113,7 @@ impl Plugin for LogViewerPlugin {
         app.add_observer(handle_log_viewer_clear);
         app.add_observer(handle_auto_open_check);
         app.add_observer(handle_level_filter_chip_toggle);
+        app.add_observer(handle_scroll_to_bottom);
 
         app.add_systems(Startup, setup_log_viewer_ui);
 
@@ -127,7 +136,10 @@ impl Plugin for LogViewerPlugin {
         // Running update_log_ui in PreUpdate to prevent data races between updating the UI and filtering log lines.
         // `handle_level_filter_chip_toggle`` can modify the `{level}_visible` fields in `LogViewerState`
         // while `update_log_ui` is adding new loglines to the viewer in parallel based on older values.
-        app.add_systems(PreUpdate, (receive_logs, update_log_counts));
+        app.add_systems(
+            PreUpdate,
+            (manage_scroll_ui_state, receive_logs, update_log_counts).chain(),
+        );
 
         app.add_systems(
             Update,
@@ -135,6 +147,8 @@ impl Plugin for LogViewerPlugin {
                 on_traffic_light_button,
                 on_auto_open_check,
                 on_level_filter_chip,
+                on_scroll_to_bottom_btn,
+                (handle_listcontainer_overflow, handle_scroll_update).chain(),
             ),
         );
     }
@@ -487,6 +501,9 @@ fn receive_logs(
             {
                 commands.trigger(LogViewerVisibility::Show);
             }
+            if log_viewer_res.scroll_state == ScrollState::Auto {
+                commands.trigger(ScrollToBottom);
+            }
         }
     }
 }
@@ -510,12 +527,83 @@ fn add_level_info(
     ));
 }
 
+// Align the list to the End until it overflows, then switch to Default for scrolling to work.
+fn handle_listcontainer_overflow(
+    mut commands: Commands,
+    mut scroll_query: Query<(&mut Node, &ComputedNode, &Children), With<ListContainerMarker>>,
+    child_comp_node_query: Query<&ComputedNode, With<ListMarker>>,
+) {
+    if let Ok((mut node, parent_comp_node, children)) = scroll_query.get_single_mut() {
+        if let Ok(child_comp_node) = child_comp_node_query.get(children[0]) {
+            let overflown = parent_comp_node.size().y < child_comp_node.size().y;
+            if !overflown && node.align_items != AlignItems::End {
+                node.align_items = AlignItems::End;
+            } else if overflown && node.align_items != AlignItems::Default {
+                node.align_items = AlignItems::Default;
+                commands.trigger(ScrollToBottom);
+            }
+        }
+    }
+}
+
+fn manage_scroll_ui_state(
+    mut log_viewer: ResMut<LogViewerState>,
+    mut border_color_q: Query<&mut BorderColor, With<LogViewerMarker>>,
+    mut scroll_to_bottom_btn_q: Query<&mut Node, With<GoDownBtnMarker>>,
+    mut scroll_query: Query<(&ScrollPosition, &ComputedNode, &Children), With<ListContainerMarker>>,
+    child_comp_node_query: Query<&ComputedNode, With<ListMarker>>,
+) {
+    if let Ok((scroll_position, parent_comp_node, children)) = scroll_query.get_single_mut() {
+        if let Ok(child_comp_node) = child_comp_node_query.get(children[0]) {
+            // The list is at bottom if the sum of the parent's height and the scroll offset is equal to the child's height.
+            // We subtract the font size to account for the last log line being partially visible and still count that as being at the bottom.
+            let is_at_bottom = parent_comp_node.size().y + scroll_position.offset_y
+                >= child_comp_node.size().y - LOG_LINE_FONT_SIZE;
+            log_viewer.scroll_state = if is_at_bottom {
+                if let Ok(mut border_color) = border_color_q.get_single_mut() {
+                    *border_color = Color::NONE.into();
+                }
+                if let Ok(mut scroll_to_bottom_btn) = scroll_to_bottom_btn_q.get_single_mut() {
+                    scroll_to_bottom_btn.display = Display::None;
+                }
+                ScrollState::Auto
+            } else {
+                if let Ok(mut border_color) = border_color_q.get_single_mut() {
+                    *border_color = css::WHITE.with_alpha(0.25).into();
+                }
+                if let Ok(mut scroll_to_bottom_btn) = scroll_to_bottom_btn_q.get_single_mut() {
+                    scroll_to_bottom_btn.display = Display::Flex;
+                }
+                ScrollState::Manual
+            };
+        }
+    }
+}
+
+fn handle_scroll_to_bottom(
+    _trigger: Trigger<ScrollToBottom>,
+    mut log_viewer: ResMut<LogViewerState>,
+    mut scroll_query: Query<(&mut ScrollPosition, &Children), With<ListContainerMarker>>,
+    computed_node_query: Query<&ComputedNode, With<ListMarker>>,
+) {
+    // ListContainerMarker -> ListMarker have a Parent -> Child relationship.
+    if let Ok((mut scroll_position, children)) = scroll_query.get_single_mut() {
+        if let Ok(computed_node) = computed_node_query.get(children[0]) {
+            scroll_position.offset_y = computed_node.size().y;
+            log_viewer.scroll_state = ScrollState::Auto;
+        }
+    }
+}
+
 fn spawn_logline(commands: &mut Commands, parent: Entity, event: &LogEvent) -> Entity {
     let dbg_level = DebugLogLevel::from(*event.metadata.level());
-    const LOG_LINE_FONT_SIZE: f32 = 8.;
 
     commands
         .spawn((
+            PickingBehavior {
+                should_block_lower: false,
+                ..default()
+            },
             TextLayout::default().with_linebreak(LineBreak::AnyCharacter),
             Text::default(),
             // Label,
@@ -591,6 +679,42 @@ fn on_level_filter_chip(
     for (level, interaction) in &mut interaction_query {
         if matches!(*interaction, Interaction::Pressed) {
             commands.trigger(ChipToggle(*level));
+        }
+    }
+}
+
+fn on_scroll_to_bottom_btn(
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<GoDownBtnMarker>)>,
+    mut commands: Commands,
+) {
+    for interaction in &mut interaction_query {
+        if matches!(*interaction, Interaction::Pressed) {
+            commands.trigger(ScrollToBottom);
+        }
+    }
+}
+
+fn handle_scroll_update(
+    mut mouse_wheel_events: EventReader<MouseWheel>,
+    hover_map: Res<HoverMap>,
+    mut scrolled_node_query: Query<&mut ScrollPosition, With<ListContainerMarker>>,
+) {
+    for mouse_wheel_event in mouse_wheel_events.read() {
+        let (dx, dy) = match mouse_wheel_event.unit {
+            MouseScrollUnit::Line => (
+                mouse_wheel_event.x * LOG_LINE_FONT_SIZE,
+                mouse_wheel_event.y * LOG_LINE_FONT_SIZE,
+            ),
+            MouseScrollUnit::Pixel => (mouse_wheel_event.x, mouse_wheel_event.y),
+        };
+
+        for (_pointer, pointer_map) in hover_map.iter() {
+            for (entity, _hit) in pointer_map.iter() {
+                if let Ok(mut scroll_position) = scrolled_node_query.get_mut(*entity) {
+                    scroll_position.offset_x -= dx;
+                    scroll_position.offset_y -= dy;
+                }
+            }
         }
     }
 }
