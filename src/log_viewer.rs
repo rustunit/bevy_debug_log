@@ -1,6 +1,6 @@
 use bevy::{prelude::*, render::view::RenderLayers, utils::tracing::level_filters::LevelFilter};
 
-use crate::{debug_log_level::DebugLogLevel, utils};
+use crate::{debug_log_level::DebugLogLevel, utils, ScrollToBottom};
 
 pub const RENDER_LAYER: usize = 55;
 
@@ -290,6 +290,9 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                     GoDownBtnMarker,
                     Name::new("go_down_btn"),
                 ))
+                .observe(|_: Trigger<Pointer<Click>>, mut commands: Commands| {
+                    commands.trigger(ScrollToBottom);
+                })
                 .with_children(|parent| {
                     // Create a down-arrow icon by rotating a square 45 degrees
                     // and clipping the overflow at the top.

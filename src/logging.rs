@@ -32,7 +32,7 @@ struct LogEvent {
 }
 
 #[derive(Debug, Event, Clone)]
-struct ScrollToBottom;
+pub(crate) struct ScrollToBottom;
 
 #[derive(Deref, DerefMut)]
 struct LogEventsReceiver(mpsc::Receiver<LogEvent>);
@@ -147,7 +147,6 @@ impl Plugin for LogViewerPlugin {
                 on_traffic_light_button,
                 on_auto_open_check,
                 on_level_filter_chip,
-                on_scroll_to_bottom_btn,
                 (handle_listcontainer_overflow, handle_scroll_update).chain(),
             ),
         );
@@ -559,21 +558,25 @@ fn manage_scroll_ui_state(
             // We subtract the font size to account for the last log line being partially visible and still count that as being at the bottom.
             let is_at_bottom = parent_comp_node.size().y + scroll_position.offset_y
                 >= child_comp_node.size().y - LOG_LINE_FONT_SIZE;
+
+            if let Ok(mut border_color) = border_color_q.get_single_mut() {
+                *border_color = if is_at_bottom {
+                    Color::NONE.into()
+                } else {
+                    css::WHITE.with_alpha(0.25).into()
+                };
+            }
+            if let Ok(mut scroll_to_bottom_btn) = scroll_to_bottom_btn_q.get_single_mut() {
+                scroll_to_bottom_btn.display = if is_at_bottom {
+                    Display::None
+                } else {
+                    Display::Flex
+                };
+            }
+
             log_viewer.scroll_state = if is_at_bottom {
-                if let Ok(mut border_color) = border_color_q.get_single_mut() {
-                    *border_color = Color::NONE.into();
-                }
-                if let Ok(mut scroll_to_bottom_btn) = scroll_to_bottom_btn_q.get_single_mut() {
-                    scroll_to_bottom_btn.display = Display::None;
-                }
                 ScrollState::Auto
             } else {
-                if let Ok(mut border_color) = border_color_q.get_single_mut() {
-                    *border_color = css::WHITE.with_alpha(0.25).into();
-                }
-                if let Ok(mut scroll_to_bottom_btn) = scroll_to_bottom_btn_q.get_single_mut() {
-                    scroll_to_bottom_btn.display = Display::Flex;
-                }
                 ScrollState::Manual
             };
         }
@@ -679,17 +682,6 @@ fn on_level_filter_chip(
     for (level, interaction) in &mut interaction_query {
         if matches!(*interaction, Interaction::Pressed) {
             commands.trigger(ChipToggle(*level));
-        }
-    }
-}
-
-fn on_scroll_to_bottom_btn(
-    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<GoDownBtnMarker>)>,
-    mut commands: Commands,
-) {
-    for interaction in &mut interaction_query {
-        if matches!(*interaction, Interaction::Pressed) {
-            commands.trigger(ScrollToBottom);
         }
     }
 }
