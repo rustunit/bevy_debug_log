@@ -54,7 +54,7 @@ commands.trigger(LogViewerVisibility::Toggle);
 
 |bevy|bevy_debug_log|
 |-|-|
-|0.15|0.4, main|
+|0.15|0.4, 0.5, main|
 |0.14|0.1, 0.2, 0.3|
 
 ## License
