@@ -10,7 +10,7 @@
 
 Allows viewing the tracing debug log output inside the app - particularly on platforms like mobile where you have no easy way to follow the terminal output.
 
-![demo](./assets/demo.png)
+![demo](./assets/demo.gif)
 
 ## Usage
 
