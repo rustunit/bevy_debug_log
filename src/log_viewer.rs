@@ -1,11 +1,17 @@
 use bevy::{prelude::*, render::view::RenderLayers, utils::tracing::level_filters::LevelFilter};
 
-use crate::{debug_log_level::DebugLogLevel, utils};
+use crate::{debug_log_level::DebugLogLevel, utils, ScrollToBottom};
 
 pub const RENDER_LAYER: usize = 55;
 
 #[derive(Component)]
 pub(crate) struct LogViewerMarker;
+
+#[derive(Component, PartialEq)]
+pub(crate) enum ScrollState {
+    Auto,
+    Manual,
+}
 
 #[derive(Resource)]
 pub(crate) struct LogViewerState {
@@ -18,6 +24,7 @@ pub(crate) struct LogViewerState {
     pub(crate) info_visible: bool,
     pub(crate) debug_visible: bool,
     pub(crate) trace_visible: bool,
+    pub(crate) scroll_state: ScrollState,
 }
 
 impl Default for LogViewerState {
@@ -32,12 +39,19 @@ impl Default for LogViewerState {
             info_visible: true,
             debug_visible: true,
             trace_visible: true,
+            scroll_state: ScrollState::Auto,
         }
     }
 }
 
 #[derive(Component)]
 pub(crate) struct ListMarker;
+
+#[derive(Component)]
+pub(crate) struct ListContainerMarker;
+
+#[derive(Component)]
+pub(crate) struct GoDownBtnMarker;
 
 #[derive(Component)]
 pub(crate) enum TrafficLightButton {
@@ -79,9 +93,11 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                 justify_content: JustifyContent::Stretch,
                 position_type: PositionType::Absolute,
                 overflow: Overflow::clip(),
+                border: UiRect::bottom(Val::Px(1.)),
                 ..default()
             },
             BackgroundColor(Color::srgba(0.15, 0.15, 0.15, 0.75)),
+            BorderColor(Color::NONE),
         ))
         .with_children(|parent| {
             // Title Bar
@@ -246,25 +262,91 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                         });
                 });
 
+            // Button for scrolling to the bottom
+            parent
+                .spawn((
+                    Node {
+                        width: Val::Px(24.),
+                        height: Val::Px(24.),
+                        bottom: Val::Px(5.),
+                        right: Val::Px(5.),
+                        position_type: PositionType::Absolute,
+                        display: Display::None,
+                        margin: UiRect::all(Val::Px(1.)),
+                        padding: UiRect {
+                            left: Val::Px(5.),
+                            right: Val::Px(5.),
+                            top: Val::Px(10.),
+                            bottom: Val::Px(5.),
+                        },
+                        border: UiRect::all(Val::Px(1.)),
+                        ..default()
+                    },
+                    ZIndex(1),
+                    Button,
+                    BorderColor(Color::WHITE),
+                    BorderRadius::all(Val::Px(20.)),
+                    BackgroundColor(Color::BLACK.with_alpha(0.75)),
+                    GoDownBtnMarker,
+                    Name::new("go_down_btn"),
+                ))
+                .observe(|_: Trigger<Pointer<Click>>, mut commands: Commands| {
+                    commands.trigger(ScrollToBottom);
+                })
+                .with_children(|parent| {
+                    // Create a down-arrow icon by rotating a square 45 degrees
+                    // and clipping the overflow at the top.
+                    parent
+                        .spawn((
+                            Node {
+                                overflow: Overflow::clip_y(),
+                                align_items: AlignItems::End,
+                                justify_content: JustifyContent::Center,
+                                width: Val::Px(16.),
+                                height: Val::Px(8.),
+                                padding: UiRect::bottom(Val::Px(4.)),
+                                ..default()
+                            },
+                            Name::new("icon_container"),
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn((
+                                Node {
+                                    width: Val::Px(8.),
+                                    height: Val::Px(8.),
+                                    ..default()
+                                },
+                                Transform {
+                                    rotation: Quat::from_rotation_z(std::f32::consts::FRAC_PI_4),
+                                    ..default()
+                                },
+                                BackgroundColor(Color::WHITE),
+                                Name::new("down_arrow"),
+                            ));
+                        });
+                });
+
             // List Container
             parent
                 .spawn((
                     Node {
                         height: Val::Percent(100.),
-                        overflow: Overflow {
-                            x: OverflowAxis::Visible,
-                            y: OverflowAxis::Clip,
-                        },
+                        overflow: Overflow::scroll_y(),
                         ..default()
                     },
                     Name::new("container"),
+                    ListContainerMarker,
                 ))
+                .observe(on_drag_scroll)
                 .with_children(|children| {
                     children.spawn((
                         Node {
                             flex_direction: FlexDirection::Column,
                             position_type: PositionType::Absolute,
-                            bottom: Val::Px(0.),
+                            ..default()
+                        },
+                        PickingBehavior {
+                            should_block_lower: false,
                             ..default()
                         },
                         Name::new("list"),
@@ -272,4 +354,15 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                     ));
                 });
         });
+}
+
+fn on_drag_scroll(
+    drag: Trigger<Pointer<Drag>>,
+    mut scroll_positions: Query<&mut ScrollPosition, With<ListContainerMarker>>,
+    mut log_viewer_state: ResMut<LogViewerState>,
+) {
+    if let Ok(mut scroll_position) = scroll_positions.get_mut(drag.entity()) {
+        scroll_position.offset_y -= drag.delta.y;
+        log_viewer_state.scroll_state = ScrollState::Manual;
+    }
 }
