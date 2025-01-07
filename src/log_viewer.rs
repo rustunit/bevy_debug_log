@@ -266,6 +266,8 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
             parent
                 .spawn((
                     Node {
+                        width: Val::Px(24.),
+                        height: Val::Px(24.),
                         bottom: Val::Px(5.),
                         right: Val::Px(5.),
                         position_type: PositionType::Absolute,
@@ -274,7 +276,7 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                         padding: UiRect {
                             left: Val::Px(5.),
                             right: Val::Px(5.),
-                            top: Val::Px(16.),
+                            top: Val::Px(10.),
                             bottom: Val::Px(5.),
                         },
                         border: UiRect::all(Val::Px(1.)),
@@ -297,9 +299,9 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                                 overflow: Overflow::clip_y(),
                                 align_items: AlignItems::End,
                                 justify_content: JustifyContent::Center,
-                                width: Val::Px(32.),
-                                height: Val::Px(16.),
-                                padding: UiRect::bottom(Val::Px(8.)),
+                                width: Val::Px(16.),
+                                height: Val::Px(8.),
+                                padding: UiRect::bottom(Val::Px(4.)),
                                 ..default()
                             },
                             Name::new("icon_container"),
@@ -307,8 +309,8 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                         .with_children(|parent| {
                             parent.spawn((
                                 Node {
-                                    width: Val::Px(16.),
-                                    height: Val::Px(16.),
+                                    width: Val::Px(8.),
+                                    height: Val::Px(8.),
                                     ..default()
                                 },
                                 Transform {
