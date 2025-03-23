@@ -17,6 +17,10 @@ bevy = { version = "0.16.0-rc.1", default-features = false, features = [
     "bevy_ui",
     "bevy_picking",
 ] }
+bevy_transform = { version = "0.16.0-rc.1" }
+bevy_math = { version = "0.16.0-rc.1" }
+bevy_input = { version = "0.16.0-rc.1" }
+bevy_log = { version = "0.16.0-rc.1" }
 time = { version = "0.3", features = ["formatting", "wasm-bindgen"] }
 
 [dev-dependencies]

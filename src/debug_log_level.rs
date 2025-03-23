@@ -1,9 +1,7 @@
-use core::fmt;
-
 use bevy::color::palettes::css;
-use bevy::log::tracing::level_filters::LevelFilter;
-use bevy::log::Level;
 use bevy::prelude::*;
+use bevy_log::{tracing::level_filters::LevelFilter, Level};
+use core::fmt;
 
 #[derive(Component, Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct DebugLogLevel(Level);

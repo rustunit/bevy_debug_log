@@ -1,5 +1,8 @@
 use crate::{debug_log_level::DebugLogLevel, utils, ScrollToBottom};
-use bevy::{log::tracing::level_filters::LevelFilter, prelude::*, render::view::RenderLayers};
+use bevy::{prelude::*, render::view::RenderLayers};
+use bevy_log::tracing::level_filters::LevelFilter;
+use bevy_math::Quat;
+use bevy_transform::components::Transform;
 
 pub const RENDER_LAYER: usize = 55;
 

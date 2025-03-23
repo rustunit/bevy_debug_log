@@ -507,6 +507,10 @@ name = "bevy_debug_log"
 version = "0.6.0"
 dependencies = [
  "bevy",
+ "bevy_input",
+ "bevy_log",
+ "bevy_math",
+ "bevy_transform",
  "pretty_assertions",
  "time",
 ]
