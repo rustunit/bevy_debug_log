@@ -1,10 +1,10 @@
-use bevy::prelude::*;
+use bevy::{ecs::relationship::RelatedSpawnerCommands, prelude::*};
 
 #[derive(Component)]
 pub(crate) struct CheckboxIconMarker;
 
 pub(crate) fn spawn_checkbox<B: Bundle + Clone>(
-    children: &mut ChildBuilder,
+    children: &mut RelatedSpawnerCommands<ChildOf>,
     bundle: B,
     name: &str,
     checked: bool,
@@ -84,7 +84,7 @@ struct ChipMarker;
 pub(crate) struct ChipLeadingTextMarker;
 
 pub(crate) fn spawn_chip<B: Bundle + Clone>(
-    children: &mut ChildBuilder,
+    children: &mut RelatedSpawnerCommands<ChildOf>,
     bundle: B,
     color: Color,
     leading_text: String,

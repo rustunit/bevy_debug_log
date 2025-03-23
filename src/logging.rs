@@ -11,13 +11,13 @@ use bevy::{
     color::palettes::css,
     input::mouse::{MouseScrollUnit, MouseWheel},
     log::{
+        tracing::{self, level_filters::LevelFilter, Subscriber},
         tracing_subscriber::{self, Layer},
         BoxedLayer,
     },
-    picking::focus::HoverMap,
+    picking::hover::HoverMap,
     prelude::*,
     render::view::RenderLayers,
-    utils::tracing::{self, level_filters::LevelFilter, Subscriber},
 };
 use std::{num::NonZero, sync::mpsc};
 use time::{format_description::well_known::iso8601, OffsetDateTime};
@@ -272,7 +272,7 @@ fn handle_log_viewer_clear(
     mut commands: Commands,
 ) {
     for e in logs.iter() {
-        commands.entity(e).despawn_recursive();
+        commands.entity(e).despawn();
     }
 }
 
@@ -456,7 +456,7 @@ fn receive_logs(
 ) {
     if let Some(receiver) = logs_rx {
         for e in receiver.try_iter() {
-            if let Ok(parent) = query.get_single_mut() {
+            if let Ok(parent) = query.single_mut() {
                 let child = spawn_logline(&mut commands, parent, &e);
 
                 // Insert the relevant log line marker and set visibility based on the log level.
@@ -532,7 +532,7 @@ fn handle_listcontainer_overflow(
     mut scroll_query: Query<(&mut Node, &ComputedNode, &Children), With<ListContainerMarker>>,
     child_comp_node_query: Query<&ComputedNode, With<ListMarker>>,
 ) {
-    if let Ok((mut node, parent_comp_node, children)) = scroll_query.get_single_mut() {
+    if let Ok((mut node, parent_comp_node, children)) = scroll_query.single_mut() {
         if let Ok(child_comp_node) = child_comp_node_query.get(children[0]) {
             let overflown = parent_comp_node.size().y < child_comp_node.size().y;
             if !overflown && node.align_items != AlignItems::End {
@@ -603,7 +603,7 @@ fn spawn_logline(commands: &mut Commands, parent: Entity, event: &LogEvent) -> E
 
     commands
         .spawn((
-            PickingBehavior {
+            Pickable {
                 should_block_lower: false,
                 ..default()
             },
