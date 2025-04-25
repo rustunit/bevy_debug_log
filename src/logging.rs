@@ -635,7 +635,7 @@ fn spawn_logline(commands: &mut Commands, parent: Entity, event: &LogEvent) -> E
             TextFont::from_font_size(LOG_LINE_FONT_SIZE),
             TextColor(css::WHITE.into()),
         ))
-        .insert(ChildOf { parent })
+        .insert(ChildOf(parent))
         .id()
 }
 
