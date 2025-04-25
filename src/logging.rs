@@ -8,16 +8,13 @@ use crate::{
     utils::{CheckboxIconMarker, ChipLeadingTextMarker},
 };
 use bevy::{
-    color::palettes::css,
-    input::mouse::{MouseScrollUnit, MouseWheel},
-    log::{
-        tracing_subscriber::{self, Layer},
-        BoxedLayer,
-    },
-    picking::focus::HoverMap,
-    prelude::*,
-    render::view::RenderLayers,
-    utils::tracing::{self, level_filters::LevelFilter, Subscriber},
+    color::palettes::css, picking::hover::HoverMap, prelude::*, render::view::RenderLayers,
+};
+use bevy_input::mouse::{MouseScrollUnit, MouseWheel};
+use bevy_log::{
+    tracing::{self, level_filters::LevelFilter, Subscriber},
+    tracing_subscriber::{self, Layer},
+    BoxedLayer,
 };
 use std::{num::NonZero, sync::mpsc};
 use time::{format_description::well_known::iso8601, OffsetDateTime};
@@ -136,10 +133,7 @@ impl Plugin for LogViewerPlugin {
         // Running update_log_ui in PreUpdate to prevent data races between updating the UI and filtering log lines.
         // `handle_level_filter_chip_toggle`` can modify the `{level}_visible` fields in `LogViewerState`
         // while `update_log_ui` is adding new loglines to the viewer in parallel based on older values.
-        app.add_systems(
-            PreUpdate,
-            (manage_scroll_ui_state, receive_logs, update_log_counts).chain(),
-        );
+        app.add_systems(PreUpdate, (receive_logs, update_log_counts).chain());
 
         app.add_systems(
             Update,
@@ -147,7 +141,12 @@ impl Plugin for LogViewerPlugin {
                 on_traffic_light_button,
                 on_auto_open_check,
                 on_level_filter_chip,
-                (handle_listcontainer_overflow, handle_scroll_update).chain(),
+                (
+                    manage_scroll_ui_state,
+                    handle_listcontainer_overflow,
+                    handle_scroll_update,
+                )
+                    .chain(),
             ),
         );
     }
@@ -272,7 +271,7 @@ fn handle_log_viewer_clear(
     mut commands: Commands,
 ) {
     for e in logs.iter() {
-        commands.entity(e).despawn_recursive();
+        commands.entity(e).despawn();
     }
 }
 
@@ -456,7 +455,7 @@ fn receive_logs(
 ) {
     if let Some(receiver) = logs_rx {
         for e in receiver.try_iter() {
-            if let Ok(parent) = query.get_single_mut() {
+            if let Ok(parent) = query.single_mut() {
                 let child = spawn_logline(&mut commands, parent, &e);
 
                 // Insert the relevant log line marker and set visibility based on the log level.
@@ -532,7 +531,7 @@ fn handle_listcontainer_overflow(
     mut scroll_query: Query<(&mut Node, &ComputedNode, &Children), With<ListContainerMarker>>,
     child_comp_node_query: Query<&ComputedNode, With<ListMarker>>,
 ) {
-    if let Ok((mut node, parent_comp_node, children)) = scroll_query.get_single_mut() {
+    if let Ok((mut node, parent_comp_node, children)) = scroll_query.single_mut() {
         if let Ok(child_comp_node) = child_comp_node_query.get(children[0]) {
             let overflown = parent_comp_node.size().y < child_comp_node.size().y;
             if !overflown && node.align_items != AlignItems::End {
@@ -546,39 +545,30 @@ fn handle_listcontainer_overflow(
 }
 
 fn manage_scroll_ui_state(
-    mut log_viewer: ResMut<LogViewerState>,
+    log_viewer: Res<LogViewerState>,
     mut border_color_q: Query<&mut BorderColor, With<LogViewerMarker>>,
     mut scroll_to_bottom_btn_q: Query<&mut Node, With<GoDownBtnMarker>>,
     mut scroll_query: Query<(&ScrollPosition, &ComputedNode, &Children), With<ListContainerMarker>>,
     child_comp_node_query: Query<&ComputedNode, With<ListMarker>>,
 ) {
-    if let Ok((scroll_position, parent_comp_node, children)) = scroll_query.get_single_mut() {
-        if let Ok(child_comp_node) = child_comp_node_query.get(children[0]) {
-            // The list is at bottom if the sum of the parent's height and the scroll offset is equal to the child's height.
-            // We subtract the font size to account for the last log line being partially visible and still count that as being at the bottom.
-            let is_at_bottom = parent_comp_node.size().y + scroll_position.offset_y
-                >= child_comp_node.size().y - LOG_LINE_FONT_SIZE;
+    if let Ok((_scroll_position, _parent_comp_node, children)) = scroll_query.single_mut() {
+        if let Ok(_child_comp_node) = child_comp_node_query.get(children[0]) {
+            let hide_button = log_viewer.scroll_state != ScrollState::Manual;
 
-            if let Ok(mut border_color) = border_color_q.get_single_mut() {
-                *border_color = if is_at_bottom {
+            if let Ok(mut border_color) = border_color_q.single_mut() {
+                *border_color = if hide_button {
                     Color::NONE.into()
                 } else {
                     css::WHITE.with_alpha(0.25).into()
                 };
             }
-            if let Ok(mut scroll_to_bottom_btn) = scroll_to_bottom_btn_q.get_single_mut() {
-                scroll_to_bottom_btn.display = if is_at_bottom {
+            if let Ok(mut scroll_to_bottom_btn) = scroll_to_bottom_btn_q.single_mut() {
+                scroll_to_bottom_btn.display = if hide_button {
                     Display::None
                 } else {
                     Display::Flex
                 };
             }
-
-            log_viewer.scroll_state = if is_at_bottom {
-                ScrollState::Auto
-            } else {
-                ScrollState::Manual
-            };
         }
     }
 }
@@ -590,7 +580,7 @@ fn handle_scroll_to_bottom(
     computed_node_query: Query<&ComputedNode, With<ListMarker>>,
 ) {
     // ListContainerMarker -> ListMarker have a Parent -> Child relationship.
-    if let Ok((mut scroll_position, children)) = scroll_query.get_single_mut() {
+    if let Ok((mut scroll_position, children)) = scroll_query.single_mut() {
         if let Ok(computed_node) = computed_node_query.get(children[0]) {
             scroll_position.offset_y = computed_node.size().y;
             log_viewer.scroll_state = ScrollState::Auto;
@@ -603,7 +593,7 @@ fn spawn_logline(commands: &mut Commands, parent: Entity, event: &LogEvent) -> E
 
     commands
         .spawn((
-            PickingBehavior {
+            Pickable {
                 should_block_lower: false,
                 ..default()
             },
@@ -645,7 +635,7 @@ fn spawn_logline(commands: &mut Commands, parent: Entity, event: &LogEvent) -> E
             TextFont::from_font_size(LOG_LINE_FONT_SIZE),
             TextColor(css::WHITE.into()),
         ))
-        .set_parent(parent)
+        .insert(ChildOf(parent))
         .id()
 }
 

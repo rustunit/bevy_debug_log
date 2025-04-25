@@ -1,6 +1,8 @@
-use bevy::{prelude::*, render::view::RenderLayers, utils::tracing::level_filters::LevelFilter};
-
 use crate::{debug_log_level::DebugLogLevel, utils, ScrollToBottom};
+use bevy::{prelude::*, render::view::RenderLayers};
+use bevy_log::tracing::level_filters::LevelFilter;
+use bevy_math::Quat;
+use bevy_transform::components::Transform;
 
 pub const RENDER_LAYER: usize = 55;
 
@@ -345,7 +347,7 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                             position_type: PositionType::Absolute,
                             ..default()
                         },
-                        PickingBehavior {
+                        Pickable {
                             should_block_lower: false,
                             ..default()
                         },
@@ -361,7 +363,7 @@ fn on_drag_scroll(
     mut scroll_positions: Query<&mut ScrollPosition, With<ListContainerMarker>>,
     mut log_viewer_state: ResMut<LogViewerState>,
 ) {
-    if let Ok(mut scroll_position) = scroll_positions.get_mut(drag.entity()) {
+    if let Ok(mut scroll_position) = scroll_positions.get_mut(drag.target()) {
         scroll_position.offset_y -= drag.delta.y;
         log_viewer_state.scroll_state = ScrollState::Manual;
     }
