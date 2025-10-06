@@ -16,6 +16,7 @@ bevy = { version = "0.17", default-features = false, features = [
     "default_font",
     "bevy_ui",
     "bevy_picking",
+    "bevy_core_pipeline",
 ] }
 bevy_transform = { version = "0.17" }
 bevy_math = { version = "0.17" }

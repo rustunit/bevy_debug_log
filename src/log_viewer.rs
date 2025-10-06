@@ -1,8 +1,6 @@
 use crate::{debug_log_level::DebugLogLevel, utils, ScrollToBottom};
 use bevy::{camera::visibility::RenderLayers, prelude::*};
 use bevy_log::tracing::level_filters::LevelFilter;
-use bevy_math::Quat;
-use bevy_transform::components::Transform;
 
 pub const RENDER_LAYER: usize = 55;
 
@@ -318,10 +316,7 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                                     height: Val::Px(8.),
                                     ..default()
                                 },
-                                Transform {
-                                    rotation: Quat::from_rotation_z(std::f32::consts::FRAC_PI_4),
-                                    ..default()
-                                },
+                                UiTransform::from_rotation(Rot2::FRAC_PI_4),
                                 BackgroundColor(Color::WHITE),
                                 Name::new("down_arrow"),
                             ));
