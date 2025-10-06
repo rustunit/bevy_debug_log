@@ -30,7 +30,7 @@ pub(crate) fn spawn_checkbox<B: Bundle + Clone>(
                         justify_content: JustifyContent::Center,
                         ..default()
                     },
-                    BorderColor(Color::WHITE),
+                    BorderColor::all(Color::WHITE),
                     BorderRadius::all(Val::Px(5.)),
                     Name::new("check_box_button"),
                     bundle,
@@ -108,7 +108,7 @@ pub(crate) fn spawn_chip<B: Bundle + Clone>(
                 margin: UiRect::all(Val::Px(1.)),
                 ..default()
             },
-            BorderColor(if active { color } else { Color::WHITE }),
+            BorderColor::all(if active { color } else { Color::WHITE }),
             BorderRadius::all(Val::Px(20.)),
             bg,
             ChipMarker,
@@ -134,7 +134,7 @@ pub(crate) fn spawn_chip<B: Bundle + Clone>(
                 .with_children(|parent| {
                     parent.spawn((
                         Text::new(leading_text),
-                        TextLayout::new_with_justify(JustifyText::Center),
+                        TextLayout::new_with_justify(Justify::Center),
                         Node {
                             align_self: AlignSelf::Center,
                             flex_grow: 1.,
@@ -155,7 +155,7 @@ pub(crate) fn spawn_chip<B: Bundle + Clone>(
 
             parent.spawn((
                 Text::new(label_text),
-                TextLayout::new_with_justify(JustifyText::Center),
+                TextLayout::new_with_justify(Justify::Center),
                 Node {
                     align_self: AlignSelf::Center,
                     margin: UiRect::right(Val::Px(5.)),

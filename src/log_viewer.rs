@@ -1,5 +1,5 @@
 use crate::{debug_log_level::DebugLogLevel, utils, ScrollToBottom};
-use bevy::{prelude::*, render::view::RenderLayers};
+use bevy::{camera::visibility::RenderLayers, prelude::*};
 use bevy_log::tracing::level_filters::LevelFilter;
 use bevy_math::Quat;
 use bevy_transform::components::Transform;
@@ -99,7 +99,7 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                 ..default()
             },
             BackgroundColor(Color::srgba(0.15, 0.15, 0.15, 0.75)),
-            BorderColor(Color::NONE),
+            BorderColor::all(Color::NONE),
         ))
         .with_children(|parent| {
             // Title Bar
@@ -286,13 +286,13 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                     },
                     ZIndex(1),
                     Button,
-                    BorderColor(Color::WHITE),
+                    BorderColor::all(Color::WHITE),
                     BorderRadius::all(Val::Px(20.)),
                     BackgroundColor(Color::BLACK.with_alpha(0.75)),
                     GoDownBtnMarker,
                     Name::new("go_down_btn"),
                 ))
-                .observe(|_: Trigger<Pointer<Click>>, mut commands: Commands| {
+                .observe(|_: On<Pointer<Click>>, mut commands: Commands| {
                     commands.trigger(ScrollToBottom);
                 })
                 .with_children(|parent| {
@@ -359,12 +359,12 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
 }
 
 fn on_drag_scroll(
-    drag: Trigger<Pointer<Drag>>,
+    drag: On<Pointer<Drag>>,
     mut scroll_positions: Query<&mut ScrollPosition, With<ListContainerMarker>>,
     mut log_viewer_state: ResMut<LogViewerState>,
 ) {
-    if let Ok(mut scroll_position) = scroll_positions.get_mut(drag.target()) {
-        scroll_position.offset_y -= drag.delta.y;
+    if let Ok(mut scroll_position) = scroll_positions.get_mut(drag.event().entity) {
+        scroll_position.y -= drag.delta.y;
         log_viewer_state.scroll_state = ScrollState::Manual;
     }
 }
