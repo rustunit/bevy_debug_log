@@ -8,7 +8,7 @@
 [sh_discord]: https://img.shields.io/discord/1176858176897953872?label=discord&color=5561E6
 [lk_discord]: https://discord.gg/rQNeEnMhus
 
-Allows viewing the tracing debug log output inside the app - particularly on platforms like mobile where you have no easy way to follow the terminal output.
+Allows viewing the tracing debug log output inside the app - particularly on platforms like mobile where you have no easy way to follow the terminal output. Beware that currently using this crate will enable `bevy/default_font`. Consider only enabling it in debug builds.
 
 ![demo](./assets/demo.gif)
 
