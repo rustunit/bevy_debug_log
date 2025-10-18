@@ -8,7 +8,7 @@ use crate::{
     utils::{CheckboxIconMarker, ChipLeadingTextMarker},
 };
 use bevy::{
-    color::palettes::css, picking::hover::HoverMap, prelude::*, render::view::RenderLayers,
+    camera::visibility::RenderLayers, color::palettes::css, picking::hover::HoverMap, prelude::*,
 };
 use bevy_input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy_log::{
@@ -21,7 +21,7 @@ use time::{format_description::well_known::iso8601, OffsetDateTime};
 
 const LOG_LINE_FONT_SIZE: f32 = 8.;
 
-#[derive(Debug, Event, Clone)]
+#[derive(Debug, Message, Clone)]
 struct LogEvent {
     message: String,
     metadata: &'static tracing::Metadata<'static>,
@@ -98,7 +98,7 @@ impl LogViewerPlugin {
 
 impl Plugin for LogViewerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<LogEvent>();
+        app.add_message::<LogEvent>();
 
         app.insert_resource(LogViewerState {
             auto_open_threshold: self.auto_open_threshold,
@@ -242,7 +242,7 @@ type WithOnlyTraceLogLine = (
 );
 
 fn handle_log_viewer_visibilty(
-    trigger: Trigger<LogViewerVisibility>,
+    trigger: On<LogViewerVisibility>,
     mut log_viewer_query: Query<&mut Node, With<LogViewerMarker>>,
     mut log_viewer_res: ResMut<LogViewerState>,
 ) {
@@ -266,7 +266,7 @@ fn handle_log_viewer_visibilty(
 }
 
 fn handle_log_viewer_clear(
-    _trigger: Trigger<ClearLogs>,
+    _trigger: On<ClearLogs>,
     logs: Query<Entity, With<LogLineMarker>>,
     mut commands: Commands,
 ) {
@@ -276,7 +276,7 @@ fn handle_log_viewer_clear(
 }
 
 fn handle_log_viewer_fullscreen(
-    trigger: Trigger<LogViewerSize>,
+    trigger: On<LogViewerSize>,
     mut log_viewer_query: Query<&mut Node, With<LogViewerMarker>>,
     mut log_viewer_res: ResMut<LogViewerState>,
 ) {
@@ -311,7 +311,7 @@ fn handle_log_viewer_fullscreen(
 }
 
 fn handle_auto_open_check(
-    _trigger: Trigger<AutoOpenToggle>,
+    _trigger: On<AutoOpenToggle>,
     mut log_viewer_res: ResMut<LogViewerState>,
     mut checkbox_query: Query<&mut Node, With<CheckboxIconMarker>>,
 ) {
@@ -328,7 +328,7 @@ fn handle_auto_open_check(
 
 #[allow(clippy::too_many_arguments)]
 fn handle_level_filter_chip_toggle(
-    trigger: Trigger<ChipToggle>,
+    trigger: On<ChipToggle>,
     mut chip_query: Query<
         (&mut BackgroundColor, &mut BorderColor, &LevelFilterChip),
         With<LevelFilterChip>,
@@ -574,7 +574,7 @@ fn manage_scroll_ui_state(
 }
 
 fn handle_scroll_to_bottom(
-    _trigger: Trigger<ScrollToBottom>,
+    _trigger: On<ScrollToBottom>,
     mut log_viewer: ResMut<LogViewerState>,
     mut scroll_query: Query<(&mut ScrollPosition, &Children), With<ListContainerMarker>>,
     computed_node_query: Query<&ComputedNode, With<ListMarker>>,
@@ -582,7 +582,7 @@ fn handle_scroll_to_bottom(
     // ListContainerMarker -> ListMarker have a Parent -> Child relationship.
     if let Ok((mut scroll_position, children)) = scroll_query.single_mut() {
         if let Ok(computed_node) = computed_node_query.get(children[0]) {
-            scroll_position.offset_y = computed_node.size().y;
+            scroll_position.y = computed_node.size().y;
             log_viewer.scroll_state = ScrollState::Auto;
         }
     }
@@ -677,7 +677,7 @@ fn on_level_filter_chip(
 }
 
 fn handle_scroll_update(
-    mut mouse_wheel_events: EventReader<MouseWheel>,
+    mut mouse_wheel_events: MessageReader<MouseWheel>,
     hover_map: Res<HoverMap>,
     mut scrolled_node_query: Query<&mut ScrollPosition, With<ListContainerMarker>>,
 ) {
@@ -693,8 +693,8 @@ fn handle_scroll_update(
         for (_pointer, pointer_map) in hover_map.iter() {
             for (entity, _hit) in pointer_map.iter() {
                 if let Ok(mut scroll_position) = scrolled_node_query.get_mut(*entity) {
-                    scroll_position.offset_x -= dx;
-                    scroll_position.offset_y -= dy;
+                    scroll_position.x -= dx;
+                    scroll_position.y -= dy;
                 }
             }
         }

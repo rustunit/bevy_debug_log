@@ -8,7 +8,7 @@ fn main() {
             .set(WindowPlugin {
                 primary_window: Some(Window {
                     title: "bevy_debug_log example".into(),
-                    resolution: WindowResolution::new(393.0, 852.0),
+                    resolution: WindowResolution::new(393, 852),
                     ..default()
                 }),
                 ..default()

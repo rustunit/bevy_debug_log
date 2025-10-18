@@ -1,6 +1,6 @@
 [package]
 name = "bevy_debug_log"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 authors = ["Rustunit <mail@rustunit.com>"]
 description = "Allows viewing tracing debug log output inside the bevy app using vanilla bevy_ui."
@@ -12,17 +12,18 @@ categories = ["game-development"]
 exclude = ["assets/"]
 
 [dependencies]
-bevy = { version = "0.16.0", default-features = false, features = [
+bevy = { version = "0.17", default-features = false, features = [
     "default_font",
     "bevy_ui",
     "bevy_picking",
+    "bevy_core_pipeline",
 ] }
-bevy_transform = { version = "0.16.0" }
-bevy_math = { version = "0.16.0" }
-bevy_input = { version = "0.16.0" }
-bevy_log = { version = "0.16.0" }
+bevy_transform = { version = "0.17" }
+bevy_math = { version = "0.17" }
+bevy_input = { version = "0.17" }
+bevy_log = { version = "0.17" }
 time = { version = "0.3", features = ["formatting", "wasm-bindgen"] }
 
 [dev-dependencies]
 pretty_assertions = "1"
-bevy = "0.16.0"
+bevy = "0.17"
