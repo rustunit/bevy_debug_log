@@ -7,15 +7,22 @@ use crate::{
     },
     utils::{CheckboxIconMarker, ChipLeadingTextMarker},
 };
-use bevy::{
-    camera::visibility::RenderLayers, color::palettes::css, picking::hover::HoverMap, prelude::*,
-};
+use bevy_app::prelude::*;
+use bevy_camera::{prelude::*, visibility::RenderLayers};
+use bevy_color::{palettes::css, prelude::*};
+use bevy_derive::{Deref, DerefMut};
+use bevy_ecs::prelude::*;
 use bevy_input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy_log::{
     tracing::{self, level_filters::LevelFilter, Subscriber},
     tracing_subscriber::{self, Layer},
     BoxedLayer,
 };
+use bevy_picking::{hover::HoverMap, prelude::*};
+use bevy_render::prelude::*;
+use bevy_text::prelude::*;
+use bevy_ui::prelude::*;
+use bevy_utils::prelude::*;
 use std::{num::NonZero, sync::mpsc};
 use time::{format_description::well_known::iso8601, OffsetDateTime};
 
@@ -163,24 +170,24 @@ pub fn log_capture_layer(app: &mut App) -> Option<BoxedLayer> {
     Some(layer.boxed())
 }
 
-#[derive(Event, Reflect, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub enum LogViewerVisibility {
     Show,
     Hide,
     Toggle,
 }
 
-#[derive(Event, Reflect, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub enum LogViewerSize {
     Big,
     Small,
     Toggle,
 }
 
-#[derive(Event, Reflect, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct ClearLogs;
 
-#[derive(Event, Reflect, Debug, Clone, Copy)]
+#[derive(Event, Debug, Clone, Copy)]
 pub struct AutoOpenToggle;
 
 #[derive(Component)]

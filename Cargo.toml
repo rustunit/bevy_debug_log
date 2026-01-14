@@ -1,6 +1,6 @@
 [package]
 name = "bevy_debug_log"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
 authors = ["Rustunit <mail@rustunit.com>"]
 description = "Allows viewing tracing debug log output inside the bevy app using vanilla bevy_ui."
@@ -12,18 +12,29 @@ categories = ["game-development"]
 exclude = ["assets/"]
 
 [dependencies]
-bevy = { version = "0.17", default-features = false, features = [
-    "default_font",
-    "bevy_ui",
-    "bevy_picking",
-    "bevy_core_pipeline",
-] }
-bevy_transform = { version = "0.17" }
-bevy_math = { version = "0.17" }
-bevy_input = { version = "0.17" }
-bevy_log = { version = "0.17" }
+bevy_app = { version = "0.18", default-features = false }
+bevy_camera = { version = "0.18", default-features = false }
+bevy_color = { version = "0.18", default-features = false }
+bevy_core_pipeline = { version = "0.18", default-features = false }
+bevy_derive = { version = "0.18", default-features = false }
+bevy_ecs = { version = "0.18", default-features = false }
+bevy_input = { version = "0.18", default-features = false }
+bevy_log = { version = "0.18", default-features = false }
+bevy_math = { version = "0.18", default-features = false }
+bevy_picking = { version = "0.18", default-features = false }
+bevy_render = { version = "0.18", default-features = false }
+bevy_text = { version = "0.18", default-features = false }
+#  features = [
+#     "default_font",
+#     "bevy_ui",
+#     "bevy_picking",
+#     "bevy_core_pipeline",
+# ] }
+bevy_transform = { version = "0.18", default-features = false }
+bevy_ui = { version = "0.18", default-features = false }
+bevy_utils = { version = "0.18", default-features = false }
 time = { version = "0.3", features = ["formatting", "wasm-bindgen"] }
 
 [dev-dependencies]
+bevy = "0.18"
 pretty_assertions = "1"
-bevy = "0.17"

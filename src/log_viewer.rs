@@ -1,6 +1,12 @@
 use crate::{debug_log_level::DebugLogLevel, utils, ScrollToBottom};
-use bevy::{camera::visibility::RenderLayers, prelude::*};
+use bevy_camera::visibility::RenderLayers;
+use bevy_color::prelude::*;
+use bevy_ecs::prelude::*;
 use bevy_log::tracing::level_filters::LevelFilter;
+use bevy_math::prelude::*;
+use bevy_picking::prelude::*;
+use bevy_ui::prelude::*;
+use bevy_utils::prelude::*;
 
 pub const RENDER_LAYER: usize = 55;
 
@@ -209,9 +215,9 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                                 Node {
                                     width: Val::Px(20.),
                                     height: Val::Px(20.),
+                                    border_radius: BorderRadius::all(Val::Px(20.)),
                                     ..default()
                                 },
-                                BorderRadius::all(Val::Px(20.)),
                                 BackgroundColor(Color::srgb_u8(43, 198, 63)),
                                 TrafficLightButton::Green,
                             ));
@@ -231,10 +237,10 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                                 Node {
                                     width: Val::Px(20.),
                                     height: Val::Px(20.),
+                                    border_radius: BorderRadius::all(Val::Px(20.)),
                                     ..default()
                                 },
                                 BackgroundColor(Color::srgb_u8(255, 188, 46)),
-                                BorderRadius::all(Val::Px(20.)),
                                 TrafficLightButton::Yellow,
                             ));
                         });
@@ -253,9 +259,9 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                                 Node {
                                     width: Val::Px(20.),
                                     height: Val::Px(20.),
+                                    border_radius: BorderRadius::all(Val::Px(20.)),
                                     ..default()
                                 },
-                                BorderRadius::all(Val::Px(20.)),
                                 BackgroundColor(Color::srgb_u8(255, 95, 87)),
                                 TrafficLightButton::Red,
                             ));
@@ -280,12 +286,12 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                             bottom: Val::Px(5.),
                         },
                         border: UiRect::all(Val::Px(1.)),
+                        border_radius: BorderRadius::all(Val::Px(20.)),
                         ..default()
                     },
                     ZIndex(1),
                     Button,
                     BorderColor::all(Color::WHITE),
-                    BorderRadius::all(Val::Px(20.)),
                     BackgroundColor(Color::BLACK.with_alpha(0.75)),
                     GoDownBtnMarker,
                     Name::new("go_down_btn"),

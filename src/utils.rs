@@ -1,4 +1,8 @@
-use bevy::{ecs::relationship::RelatedSpawnerCommands, prelude::*};
+use bevy_color::prelude::*;
+use bevy_ecs::{prelude::*, relationship::RelatedSpawnerCommands};
+use bevy_text::prelude::*;
+use bevy_ui::prelude::*;
+use bevy_utils::prelude::*;
 
 #[derive(Component)]
 pub(crate) struct CheckboxIconMarker;
@@ -28,10 +32,10 @@ pub(crate) fn spawn_checkbox<B: Bundle + Clone>(
                         width: Val::Px(20.),
                         height: Val::Px(20.),
                         justify_content: JustifyContent::Center,
+                        border_radius: BorderRadius::all(Val::Px(5.)),
                         ..default()
                     },
                     BorderColor::all(Color::WHITE),
-                    BorderRadius::all(Val::Px(5.)),
                     Name::new("check_box_button"),
                     bundle,
                 ))
@@ -46,9 +50,9 @@ pub(crate) fn spawn_checkbox<B: Bundle + Clone>(
                             } else {
                                 Display::None
                             },
+                            border_radius: BorderRadius::all(Val::Px(3.)),
                             ..default()
                         },
-                        BorderRadius::all(Val::Px(3.)),
                         BackgroundColor(Color::WHITE),
                         CheckboxIconMarker,
                         Name::new("check_box_icon"),
@@ -106,10 +110,10 @@ pub(crate) fn spawn_chip<B: Bundle + Clone>(
                 justify_content: JustifyContent::Center,
                 align_self: AlignSelf::Center,
                 margin: UiRect::all(Val::Px(1.)),
+                border_radius: BorderRadius::all(Val::Px(20.)),
                 ..default()
             },
             BorderColor::all(if active { color } else { Color::WHITE }),
-            BorderRadius::all(Val::Px(20.)),
             bg,
             ChipMarker,
             bundle.clone(),
@@ -125,9 +129,9 @@ pub(crate) fn spawn_chip<B: Bundle + Clone>(
                         display: Display::Flex,
                         min_height: Val::Px(15.),
                         min_width: Val::Px(15.),
+                        border_radius: BorderRadius::all(Val::Px(10.)),
                         ..default()
                     },
-                    BorderRadius::all(Val::Px(10.)),
                     BackgroundColor(color),
                     Name::new("chip_leading"),
                 ))

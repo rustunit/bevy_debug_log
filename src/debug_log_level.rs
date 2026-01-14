@@ -1,5 +1,5 @@
-use bevy::color::palettes::css;
-use bevy::prelude::*;
+use bevy_color::{palettes::css, prelude::*};
+use bevy_ecs::prelude::*;
 use bevy_log::{tracing::level_filters::LevelFilter, Level};
 use core::fmt;
 
