@@ -579,7 +579,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_debug_log"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "bevy",
  "bevy_app",
@@ -589,6 +589,7 @@ dependencies = [
  "bevy_derive",
  "bevy_ecs",
  "bevy_input",
+ "bevy_internal",
  "bevy_log",
  "bevy_math",
  "bevy_picking",
