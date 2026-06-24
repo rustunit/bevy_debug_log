@@ -73,7 +73,7 @@ pub(crate) fn spawn_checkbox<B: Bundle + Clone>(
             parent.spawn((
                 Text::new(text),
                 TextFont {
-                    font_size: 10.,
+                    font_size: FontSize::Px(10.),
                     ..default()
                 },
                 Label,
@@ -138,7 +138,7 @@ pub(crate) fn spawn_chip<B: Bundle + Clone>(
                 .with_children(|parent| {
                     parent.spawn((
                         Text::new(leading_text),
-                        TextLayout::new_with_justify(Justify::Center),
+                        TextLayout::justify(Justify::Center),
                         Node {
                             align_self: AlignSelf::Center,
                             flex_grow: 1.,
@@ -146,7 +146,7 @@ pub(crate) fn spawn_chip<B: Bundle + Clone>(
                             ..default()
                         },
                         TextFont {
-                            font_size: 10.,
+                            font_size: FontSize::Px(10.),
                             ..default()
                         },
                         TextColor(Color::BLACK),
@@ -159,7 +159,7 @@ pub(crate) fn spawn_chip<B: Bundle + Clone>(
 
             parent.spawn((
                 Text::new(label_text),
-                TextLayout::new_with_justify(Justify::Center),
+                TextLayout::justify(Justify::Center),
                 Node {
                     align_self: AlignSelf::Center,
                     margin: UiRect::right(Val::Px(5.)),
@@ -167,7 +167,7 @@ pub(crate) fn spawn_chip<B: Bundle + Clone>(
                     ..default()
                 },
                 TextFont {
-                    font_size: 10.,
+                    font_size: FontSize::Px(10.),
                     ..default()
                 },
                 Label,

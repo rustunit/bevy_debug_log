@@ -55,7 +55,8 @@ commands.trigger(LogViewerVisibility::Toggle);
 
 |bevy|crate|
 |-|-|
-|0.18|0.8.x, main|
+|0.19|0.9, main|
+|0.18|0.8.x|
 |0.17|0.7|
 |0.16|0.6|
 |0.15|0.4, 0.5|
