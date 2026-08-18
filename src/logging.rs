@@ -583,13 +583,16 @@ fn manage_scroll_ui_state(
 fn handle_scroll_to_bottom(
     _trigger: On<ScrollToBottom>,
     mut log_viewer: ResMut<LogViewerState>,
-    mut scroll_query: Query<(&mut ScrollPosition, &Children), With<ListContainerMarker>>,
+    mut scroll_query: Query<
+        (&mut ScrollPosition, &ComputedNode, &Children),
+        With<ListContainerMarker>,
+    >,
     computed_node_query: Query<&ComputedNode, With<ListMarker>>,
 ) {
     // ListContainerMarker -> ListMarker have a Parent -> Child relationship.
-    if let Ok((mut scroll_position, children)) = scroll_query.single_mut() {
+    if let Ok((mut scroll_position, container, children)) = scroll_query.single_mut() {
         if let Ok(computed_node) = computed_node_query.get(children[0]) {
-            scroll_position.y = computed_node.size().y;
+            scroll_position.y = crate::utils::max_scroll(container, computed_node).y;
             log_viewer.scroll_state = ScrollState::Auto;
         }
     }
@@ -686,7 +689,11 @@ fn on_level_filter_chip(
 fn handle_scroll_update(
     mut mouse_wheel_events: MessageReader<MouseWheel>,
     hover_map: Res<HoverMap>,
-    mut scrolled_node_query: Query<&mut ScrollPosition, With<ListContainerMarker>>,
+    mut scrolled_node_query: Query<
+        (&mut ScrollPosition, &ComputedNode, &Children),
+        With<ListContainerMarker>,
+    >,
+    content_query: Query<&ComputedNode, With<ListMarker>>,
 ) {
     for mouse_wheel_event in mouse_wheel_events.read() {
         let (dx, dy) = match mouse_wheel_event.unit {
@@ -699,9 +706,14 @@ fn handle_scroll_update(
 
         for (_pointer, pointer_map) in hover_map.iter() {
             for (entity, _hit) in pointer_map.iter() {
-                if let Ok(mut scroll_position) = scrolled_node_query.get_mut(*entity) {
-                    scroll_position.x -= dx;
-                    scroll_position.y -= dy;
+                if let Ok((mut scroll_position, container, children)) =
+                    scrolled_node_query.get_mut(*entity)
+                {
+                    if let Ok(content) = content_query.get(children[0]) {
+                        let max = crate::utils::max_scroll(container, content);
+                        scroll_position.x = (scroll_position.x - dx).clamp(0., max.x);
+                        scroll_position.y = (scroll_position.y - dy).clamp(0., max.y);
+                    }
                 }
             }
         }

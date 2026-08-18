@@ -1,8 +1,17 @@
 use bevy_color::prelude::*;
 use bevy_ecs::{prelude::*, relationship::RelatedSpawnerCommands};
+use bevy_math::prelude::*;
 use bevy_text::prelude::*;
 use bevy_ui::prelude::*;
 use bevy_utils::prelude::*;
+
+/// Largest valid [`ScrollPosition`] for a scroll container, in logical px.
+///
+/// `ComputedNode` sizes are physical px, so the range has to be converted; going past it
+/// leaves an invisible offset that has to be scrolled back before anything moves again.
+pub(crate) fn max_scroll(container: &ComputedNode, content: &ComputedNode) -> Vec2 {
+    (content.size() - container.size()).max(Vec2::ZERO) * container.inverse_scale_factor
+}
 
 #[derive(Component)]
 pub(crate) struct CheckboxIconMarker;

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.0] - 2026-08-18
 
+### Fixed
+* precise drag scrolling ([#7](https://github.com/rustunit/bevy_debug_log/issues/7))
+
 ### Changed
 * support Bevy `0.19`
 
