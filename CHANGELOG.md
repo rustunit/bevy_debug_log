@@ -12,12 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * support Bevy `0.19`
 
-## [0.8.1] - 2025-01-19
+## [0.8.1] - 2026-01-19
 
 ### Changed
 * fix bringing along bevy/default_font feature 
 
-## [0.8.0] - 2025-01-14
+## [0.8.0] - 2026-01-14
 
 ### Changed
 * support Bevy `0.18`
