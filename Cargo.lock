@@ -638,7 +638,6 @@ dependencies = [
  "bevy_derive",
  "bevy_ecs",
  "bevy_input",
- "bevy_internal",
  "bevy_log",
  "bevy_math",
  "bevy_picking",
