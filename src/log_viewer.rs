@@ -81,8 +81,90 @@ pub(crate) enum LevelFilterChip {
 #[derive(Event)]
 pub(crate) struct ChipToggle(pub(crate) LevelFilterChip);
 
+/// A macOS-style window button: a coloured circle in a padded slot.
+fn traffic_light(name: &str, color: Color, button: TrafficLightButton) -> impl Bundle {
+    (
+        Node {
+            padding: UiRect::all(Val::Px(5.)),
+            align_items: AlignItems::End,
+            ..default()
+        },
+        Name::new(name.to_string()),
+        children![(
+            Button,
+            Node {
+                width: Val::Px(20.),
+                height: Val::Px(20.),
+                border_radius: BorderRadius::all(Val::Px(20.)),
+                ..default()
+            },
+            BackgroundColor(color),
+            button,
+        )],
+    )
+}
+
 pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewerState>) {
     let safe_zone_top = if cfg!(target_os = "ios") { 50 } else { 0 };
+
+    let chips = [
+        (
+            LevelFilterChip::Error,
+            DebugLogLevel::ERROR,
+            "E",
+            log_viewer_res.error_visible,
+            "error_switch",
+        ),
+        (
+            LevelFilterChip::Warn,
+            DebugLogLevel::WARN,
+            "W",
+            log_viewer_res.warn_visible,
+            "warn_switch",
+        ),
+        (
+            LevelFilterChip::Info,
+            DebugLogLevel::INFO,
+            "I",
+            log_viewer_res.info_visible,
+            "info_switch",
+        ),
+        (
+            LevelFilterChip::Debug,
+            DebugLogLevel::DEBUG,
+            "D",
+            log_viewer_res.debug_visible,
+            "debug_switch",
+        ),
+        (
+            LevelFilterChip::Trace,
+            DebugLogLevel::TRACE,
+            "T",
+            log_viewer_res.trace_visible,
+            "trace_switch",
+        ),
+    ];
+
+    let traffic_lights = [
+        (
+            "size_btn",
+            Color::srgb_u8(43, 198, 63),
+            TrafficLightButton::Green,
+        ),
+        (
+            "clear_btn",
+            Color::srgb_u8(255, 188, 46),
+            TrafficLightButton::Yellow,
+        ),
+        (
+            "close_logs_btn",
+            Color::srgb_u8(255, 95, 87),
+            TrafficLightButton::Red,
+        ),
+    ];
+
+    // Show the auto-open checkbox only when auto-open is enabled.
+    let auto_open_level: Option<DebugLogLevel> = log_viewer_res.auto_open_threshold.try_into().ok();
 
     commands
         .spawn((
@@ -106,7 +188,7 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
             BorderColor::all(Color::NONE),
         ))
         .with_children(|parent| {
-            // Title Bar
+            // Title Bar - built imperatively because its children are looped and conditional.
             parent
                 .spawn((
                     Node {
@@ -117,55 +199,16 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                     Name::new("title_bar"),
                 ))
                 .with_children(|parent| {
-                    utils::spawn_chip(
-                        parent,
-                        LevelFilterChip::Error,
-                        DebugLogLevel::ERROR.into(),
-                        "0".into(),
-                        "E".into(),
-                        log_viewer_res.error_visible,
-                        "error_switch",
-                    );
-
-                    utils::spawn_chip(
-                        parent,
-                        LevelFilterChip::Warn,
-                        DebugLogLevel::WARN.into(),
-                        "0".into(),
-                        "W".into(),
-                        log_viewer_res.warn_visible,
-                        "warn_switch",
-                    );
-
-                    utils::spawn_chip(
-                        parent,
-                        LevelFilterChip::Info,
-                        DebugLogLevel::INFO.into(),
-                        "0".into(),
-                        "I".into(),
-                        log_viewer_res.info_visible,
-                        "info_switch",
-                    );
-
-                    utils::spawn_chip(
-                        parent,
-                        LevelFilterChip::Debug,
-                        DebugLogLevel::DEBUG.into(),
-                        "0".into(),
-                        "D".into(),
-                        log_viewer_res.debug_visible,
-                        "debug_switch",
-                    );
-
-                    utils::spawn_chip(
-                        parent,
-                        LevelFilterChip::Trace,
-                        DebugLogLevel::TRACE.into(),
-                        "0".into(),
-                        "T".into(),
-                        log_viewer_res.trace_visible,
-                        "trace_switch",
-                    );
+                    for (chip, level, label, active, name) in chips {
+                        parent.spawn(utils::chip(
+                            chip,
+                            level.into(),
+                            "0".into(),
+                            label.into(),
+                            active,
+                            name,
+                        ));
+                    }
 
                     parent.spawn((
                         Node {
@@ -175,97 +218,26 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                         },
                         Name::new("title_bar_spacer"),
                     ));
-                    // Show checkbox only when auto-open is enabled
-                    if log_viewer_res.auto_open_threshold != LevelFilter::OFF {
-                        // This cannot fail because LevelFilter cannot be OFF here
-                        let level: DebugLogLevel = log_viewer_res
-                            .auto_open_threshold
-                            .try_into()
-                            .expect("LevelFilter should be convertible to DebugLogLevel");
-                        parent
-                            .spawn((
-                                Node {
-                                    align_items: AlignItems::End,
-                                    ..default()
-                                },
-                                Name::new("auto-open"),
-                            ))
-                            .with_children(|parent| {
-                                utils::spawn_checkbox(
-                                    parent,
-                                    AutoCheckBox,
-                                    "auto-open-checkbox",
-                                    log_viewer_res.auto_open_enabled,
-                                    format!("Auto-open on {}", level.title_case()),
-                                );
-                            });
+
+                    if let Some(level) = auto_open_level {
+                        parent.spawn((
+                            Node {
+                                align_items: AlignItems::End,
+                                ..default()
+                            },
+                            Name::new("auto-open"),
+                            Children::spawn(utils::checkbox(
+                                AutoCheckBox,
+                                "auto-open-checkbox",
+                                log_viewer_res.auto_open_enabled,
+                                format!("Auto-open on {}", level.title_case()),
+                            )),
+                        ));
                     }
-                    parent
-                        .spawn((
-                            Node {
-                                padding: UiRect::all(Val::Px(5.)),
-                                align_items: AlignItems::End,
-                                ..default()
-                            },
-                            Name::new("size_btn"),
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((
-                                Button,
-                                Node {
-                                    width: Val::Px(20.),
-                                    height: Val::Px(20.),
-                                    border_radius: BorderRadius::all(Val::Px(20.)),
-                                    ..default()
-                                },
-                                BackgroundColor(Color::srgb_u8(43, 198, 63)),
-                                TrafficLightButton::Green,
-                            ));
-                        });
-                    parent
-                        .spawn((
-                            Node {
-                                padding: UiRect::all(Val::Px(5.)),
-                                align_items: AlignItems::End,
-                                ..default()
-                            },
-                            Name::new("clear_btn"),
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((
-                                Button,
-                                Node {
-                                    width: Val::Px(20.),
-                                    height: Val::Px(20.),
-                                    border_radius: BorderRadius::all(Val::Px(20.)),
-                                    ..default()
-                                },
-                                BackgroundColor(Color::srgb_u8(255, 188, 46)),
-                                TrafficLightButton::Yellow,
-                            ));
-                        });
-                    parent
-                        .spawn((
-                            Node {
-                                padding: UiRect::all(Val::Px(5.)),
-                                align_items: AlignItems::End,
-                                ..default()
-                            },
-                            Name::new("close_logs_btn"),
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((
-                                Button,
-                                Node {
-                                    width: Val::Px(20.),
-                                    height: Val::Px(20.),
-                                    border_radius: BorderRadius::all(Val::Px(20.)),
-                                    ..default()
-                                },
-                                BackgroundColor(Color::srgb_u8(255, 95, 87)),
-                                TrafficLightButton::Red,
-                            ));
-                        });
+
+                    for (name, color, button) in traffic_lights {
+                        parent.spawn(traffic_light(name, color, button));
+                    }
                 });
 
             // Button for scrolling to the bottom
@@ -295,38 +267,32 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                     BackgroundColor(Color::BLACK.with_alpha(0.75)),
                     GoDownBtnMarker,
                     Name::new("go_down_btn"),
+                    // A down-arrow icon: a square rotated 45 degrees, clipped at the top.
+                    children![(
+                        Node {
+                            overflow: Overflow::clip_y(),
+                            align_items: AlignItems::End,
+                            justify_content: JustifyContent::Center,
+                            width: Val::Px(16.),
+                            height: Val::Px(8.),
+                            padding: UiRect::bottom(Val::Px(4.)),
+                            ..default()
+                        },
+                        Name::new("icon_container"),
+                        children![(
+                            Node {
+                                width: Val::Px(8.),
+                                height: Val::Px(8.),
+                                ..default()
+                            },
+                            UiTransform::from_rotation(Rot2::FRAC_PI_4),
+                            BackgroundColor(Color::WHITE),
+                            Name::new("down_arrow"),
+                        )],
+                    )],
                 ))
                 .observe(|_: On<Pointer<Click>>, mut commands: Commands| {
                     commands.trigger(ScrollToBottom);
-                })
-                .with_children(|parent| {
-                    // Create a down-arrow icon by rotating a square 45 degrees
-                    // and clipping the overflow at the top.
-                    parent
-                        .spawn((
-                            Node {
-                                overflow: Overflow::clip_y(),
-                                align_items: AlignItems::End,
-                                justify_content: JustifyContent::Center,
-                                width: Val::Px(16.),
-                                height: Val::Px(8.),
-                                padding: UiRect::bottom(Val::Px(4.)),
-                                ..default()
-                            },
-                            Name::new("icon_container"),
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((
-                                Node {
-                                    width: Val::Px(8.),
-                                    height: Val::Px(8.),
-                                    ..default()
-                                },
-                                UiTransform::from_rotation(Rot2::FRAC_PI_4),
-                                BackgroundColor(Color::WHITE),
-                                Name::new("down_arrow"),
-                            ));
-                        });
                 });
 
             // List Container
@@ -339,10 +305,7 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                     },
                     Name::new("container"),
                     ListContainerMarker,
-                ))
-                .observe(on_drag_scroll)
-                .with_children(|children| {
-                    children.spawn((
+                    children![(
                         Node {
                             flex_direction: FlexDirection::Column,
                             position_type: PositionType::Absolute,
@@ -354,8 +317,9 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                         },
                         Name::new("list"),
                         ListMarker,
-                    ));
-                });
+                    )],
+                ))
+                .observe(on_drag_scroll);
         });
 }
 
