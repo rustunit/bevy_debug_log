@@ -22,6 +22,7 @@ use bevy_picking::{hover::HoverMap, prelude::*};
 use bevy_render::prelude::*;
 use bevy_text::prelude::*;
 use bevy_ui::prelude::*;
+use bevy_ui_widgets::Activate;
 use bevy_utils::prelude::*;
 use std::{num::NonZero, sync::mpsc};
 use time::{format_description::well_known::iso8601, OffsetDateTime};
@@ -118,6 +119,9 @@ impl Plugin for LogViewerPlugin {
         app.add_observer(handle_auto_open_check);
         app.add_observer(handle_level_filter_chip_toggle);
         app.add_observer(handle_scroll_to_bottom);
+        app.add_observer(on_traffic_light_button);
+        app.add_observer(on_auto_open_check);
+        app.add_observer(on_level_filter_chip);
 
         app.add_systems(Startup, setup_log_viewer_ui);
 
@@ -145,16 +149,11 @@ impl Plugin for LogViewerPlugin {
         app.add_systems(
             Update,
             (
-                on_traffic_light_button,
-                on_auto_open_check,
-                on_level_filter_chip,
-                (
-                    manage_scroll_ui_state,
-                    handle_listcontainer_overflow,
-                    handle_scroll_update,
-                )
-                    .chain(),
-            ),
+                manage_scroll_ui_state,
+                handle_listcontainer_overflow,
+                handle_scroll_update,
+            )
+                .chain(),
         );
     }
 }
@@ -650,39 +649,36 @@ fn spawn_logline(commands: &mut Commands, parent: Entity, event: &LogEvent) -> E
 }
 
 fn on_traffic_light_button(
-    mut interaction_query: Query<(&TrafficLightButton, &Interaction), Changed<Interaction>>,
+    activate: On<Activate>,
+    buttons: Query<&TrafficLightButton>,
     mut commands: Commands,
 ) {
-    for (button, interaction) in &mut interaction_query {
-        if matches!(*interaction, Interaction::Pressed) {
-            match button {
-                TrafficLightButton::Red => commands.trigger(LogViewerVisibility::Hide),
-                TrafficLightButton::Yellow => commands.trigger(ClearLogs),
-                TrafficLightButton::Green => commands.trigger(LogViewerSize::Toggle),
-            }
+    if let Ok(button) = buttons.get(activate.entity) {
+        match button {
+            TrafficLightButton::Red => commands.trigger(LogViewerVisibility::Hide),
+            TrafficLightButton::Yellow => commands.trigger(ClearLogs),
+            TrafficLightButton::Green => commands.trigger(LogViewerSize::Toggle),
         }
     }
 }
 
 fn on_auto_open_check(
-    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<AutoCheckBox>)>,
+    activate: On<Activate>,
+    checkboxes: Query<(), With<AutoCheckBox>>,
     mut commands: Commands,
 ) {
-    for interaction in &mut interaction_query {
-        if matches!(*interaction, Interaction::Pressed) {
-            commands.trigger(AutoOpenToggle);
-        }
+    if checkboxes.contains(activate.entity) {
+        commands.trigger(AutoOpenToggle);
     }
 }
 
 fn on_level_filter_chip(
-    mut interaction_query: Query<(&LevelFilterChip, &Interaction), Changed<Interaction>>,
+    activate: On<Activate>,
+    chips: Query<&LevelFilterChip>,
     mut commands: Commands,
 ) {
-    for (level, interaction) in &mut interaction_query {
-        if matches!(*interaction, Interaction::Pressed) {
-            commands.trigger(ChipToggle(*level));
-        }
+    if let Ok(level) = chips.get(activate.entity) {
+        commands.trigger(ChipToggle(*level));
     }
 }
 

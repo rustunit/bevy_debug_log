@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [0.10.0] - 2026-10-19
+
+### Changed
+* support Bevy `0.20`
+* buttons use `bevy_ui_widgets::Button` and activate on click (release) instead of on press; requires `ButtonPlugin` (part of `DefaultPlugins` with bevy's default features)
+
 ## [0.9.0] - 2026-08-18
 
 ### Fixed

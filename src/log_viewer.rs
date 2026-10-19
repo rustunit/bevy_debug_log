@@ -6,6 +6,7 @@ use bevy_log::tracing::level_filters::LevelFilter;
 use bevy_math::prelude::*;
 use bevy_picking::{pointer::PointerId, prelude::*};
 use bevy_ui::prelude::*;
+use bevy_ui_widgets::{Activate, Button};
 use bevy_utils::prelude::*;
 
 pub const RENDER_LAYER: usize = 55;
@@ -291,7 +292,7 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
                         )],
                     )],
                 ))
-                .observe(|_: On<Pointer<Click>>, mut commands: Commands| {
+                .observe(|_: On<Activate>, mut commands: Commands| {
                     commands.trigger(ScrollToBottom);
                 });
 
@@ -324,7 +325,7 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
 }
 
 fn on_drag_scroll(
-    drag: On<Pointer<Drag>>,
+    drag: On<PointerDrag>,
     mut last_drag: Local<Option<(PointerId, Vec2)>>,
     mut scroll_positions: Query<
         (&mut ScrollPosition, &ComputedNode, &Children),
@@ -336,14 +337,12 @@ fn on_drag_scroll(
     // Pressing over a log line puts the line, the list and the container all in the pointer's
     // drag set, so one cursor move arrives here three times. Every copy carries the same
     // distance, so apply the first of each set and drop the rest.
-    let this_drag = (drag.pointer_id, drag.distance);
+    let this_drag = (drag.pointer.id, drag.distance);
     if last_drag.replace(this_drag) == Some(this_drag) {
         return;
     }
 
-    if let Ok((mut scroll_position, container, children)) =
-        scroll_positions.get_mut(drag.event().entity)
-    {
+    if let Ok((mut scroll_position, container, children)) = scroll_positions.get_mut(drag.entity) {
         if let Ok(content) = content_query.get(children[0]) {
             let max = utils::max_scroll(container, content);
             scroll_position.y = (scroll_position.y - drag.delta.y).clamp(0., max.y);
