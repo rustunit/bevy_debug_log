@@ -250,7 +250,7 @@ type WithOnlyTraceLogLine = (
 
 fn handle_log_viewer_visibilty(
     trigger: On<LogViewerVisibility>,
-    mut log_viewer_query: Query<&mut Node, With<LogViewerMarker>>,
+    mut log_viewer_query: Query<&mut Visibility, (With<LogViewerMarker>, With<Node>)>,
     mut log_viewer_res: ResMut<LogViewerState>,
 ) {
     let visible = match trigger.event() {
@@ -259,17 +259,14 @@ fn handle_log_viewer_visibilty(
         LogViewerVisibility::Toggle => !log_viewer_res.visible,
     };
 
-    if visible {
-        for mut style in log_viewer_query.iter_mut() {
-            style.display = Display::Flex;
-        }
-        log_viewer_res.visible = true;
-    } else {
-        for mut style in log_viewer_query.iter_mut() {
-            style.display = Display::None;
-        }
-        log_viewer_res.visible = false;
+    for mut visibility in log_viewer_query.iter_mut() {
+        *visibility = if visible {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
     }
+    log_viewer_res.visible = visible;
 }
 
 fn handle_log_viewer_clear(

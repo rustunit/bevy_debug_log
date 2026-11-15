@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+* hiding the log viewer stalled for seconds once a few thousand lines were logged: it used `Display::None`, which re-laid out every line's text at zero width; it now uses `Visibility::Hidden`, which also makes lines logged while hidden much cheaper
+
 ## [0.9.0] - 2026-08-18
 
 ### Fixed
