@@ -1,5 +1,5 @@
 use crate::{debug_log_level::DebugLogLevel, utils, ScrollToBottom};
-use bevy_camera::visibility::RenderLayers;
+use bevy_camera::visibility::{RenderLayers, Visibility};
 use bevy_color::prelude::*;
 use bevy_ecs::prelude::*;
 use bevy_log::tracing::level_filters::LevelFilter;
@@ -173,8 +173,10 @@ pub fn setup_log_viewer_ui(mut commands: Commands, log_viewer_res: Res<LogViewer
             RenderLayers::layer(RENDER_LAYER),
             LogViewerMarker,
             GlobalZIndex(i32::MAX),
+            // Hidden, not `Display::None`: that collapses every log line to zero width and
+            // re-lays out all their text, which stalls for seconds with a few thousand lines.
+            Visibility::Hidden,
             Node {
-                display: Display::None,
                 width: Val::Percent(100.0),
                 height: Val::Percent(40.0),
                 padding: UiRect::all(Val::Px(4.)).with_top(Val::Px(safe_zone_top as f32)),
